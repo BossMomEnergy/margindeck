@@ -65,6 +65,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand h1 { font-size: 21px; letter-spacing: -0.01em; }
 .brand span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .client { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.client img { height: 30px; width: auto; max-width: 96px; object-fit: contain; border-radius: 4px; }
+.logo-box { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.logo-box .ph { width: 120px; height: 72px; border: 1.5px dashed var(--line); border-radius: var(--r); display: grid; place-items: center; color: var(--muted); font-size: 12px; background: var(--surface-2); overflow: hidden; }
+.logo-box .ph img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.prepared { display: flex; gap: 14px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.prepared img { height: 44px; width: auto; max-width: 160px; object-fit: contain; }
+.prepared small { display: block; color: var(--muted); font-size: 12px; }
 .client label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 select, input[type=text], input[type=number], input[type=date], textarea {
   background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; min-width: 0;
@@ -189,6 +196,7 @@ tfoot td { font-weight: 700; background: var(--surface-2); }
     <div class="bar">
       <div class="brand"><h1>Margin Desk</h1><span>Food cost consulting</span></div>
       <div class="client">
+        <img id="clientLogo" alt="" hidden>
         <label for="clientSel">Client</label>
         <select id="clientSel" aria-label="Choose client"></select>
         <button class="btn" id="newClientBtn" type="button">New client</button>
@@ -374,6 +382,7 @@ function buildDemo() {
   const posMap = {}; S.forEach(([item, , , r]) => { if (r) posMap[item] = r; });
   const ws = {
     v: 1, name: "Northgate Tavern (demo)",
+    account: { legalName: "Northgate Tavern (sample)", contact: "Sample contact", role: "Owner", locations: 1, notes: "Demo account with made-up numbers." },
     setup: { pos: "Toast", purchasing: "MarginEdge", accounting: "QuickBooks Online", target: 28, periodDays: 28, threshold: 5, periodLabel: "Sep 29 – Oct 26, 2026", segment: "Bar & tavern", splhTarget: 50, minStaff: 3 },
     ingredients, recipes, sales, invoices, counts, posMap, vendorMap, hourly: [], checklist: { it1: true, it2: true, it3: true, de1: true, de2: true, de3: false }, bench: {},
     pnl: { foodSales: null, foodCOGS: null, totalSales: null, totalCOGS: null }, readout: ""
@@ -392,7 +401,7 @@ function blankClient(name) {
     pnl: { foodSales: null, foodCOGS: null, totalSales: null, totalCOGS: null }, readout: "" };
 }
 function upgrade(w) {
-  w.hourly ||= []; w.checklist ||= {}; w.bench ||= {}; w.pnl ||= {};
+  w.hourly ||= []; w.checklist ||= {}; w.bench ||= {}; w.pnl ||= {}; w.account ||= {};
   w.setup.segment ||= "Full-service casual"; w.setup.splhTarget ??= 50; w.setup.minStaff ??= 3;
   return w;
 }
@@ -635,7 +644,7 @@ function renderClientSel() {
 async function switchClient(id) {
   if (dirty) await saveNow();
   currentId = id; subtab = "import"; importState = null; confirmDelete = false;
-  renderClientSel(); renderSaveState(); render();
+  renderClientSel(); renderSaveState(); render(); renderLogo();
 }
 async function newClient() {
   const name = "New client " + (Object.keys(clients).length + 1);
@@ -652,7 +661,7 @@ async function newClient() {
     if (localMode) saveLocal(); else toast("Saving isn't available in this view, so this client lasts only until you close the page.");
   }
   if (dirty) await saveNow();
-  currentId = id; location.hash = "setup"; renderClientSel(); renderSaveState(); render();
+  currentId = id; location.hash = "setup"; renderClientSel(); renderSaveState(); render(); renderLogo();
 }
 
 /* ---------- routing ---------- */
@@ -687,7 +696,31 @@ const periodTxt = w => w.setup.periodLabel ? h(w.setup.periodLabel) + " · " : "
 function vSetup(w) {
   const S = w.setup;
   const opt = (group, val) => Object.keys(SYSTEMS[group]).map(k => `<option ${k === val ? "selected" : ""}>${h(k)}</option>`).join("");
-  return head("Client setup", "Set the client's systems and the targets the analysis checks against.") + `
+  const ac = w.account || {};
+  const af = (k, label, type = "text", ph = "") => `<div class="field"><label for="ac_${k}">${label}</label><input id="ac_${k}" type="${type}" data-acct="${k}" value="${h(ac[k] ?? "")}" placeholder="${h(ph)}"></div>`;
+  return head("Client setup", "The client's account details, systems, and the targets the analysis checks against.") + `
+  <section class="panel"><header><h3>Account</h3><p>Shown on the client readout and in the header.</p></header>
+    <div class="logo-box">
+      <div class="ph">${w.logo ? `<img src="${h(w.logo)}" alt="${h(w.name)} logo">` : "No logo"}</div>
+      <div style="display:grid;gap:6px">
+        <label class="btn" for="logoFile" style="justify-self:start">${w.logo ? "Replace logo" : "Upload logo"}</label>
+        <input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
+        ${w.logo ? `<button class="btn ghost danger" type="button" data-act="logo-remove" style="justify-self:start">Remove logo</button>` : ""}
+        <small class="muted">PNG, JPG, WebP or SVG. Resized to fit 320px.</small>
+      </div>
+    </div>
+    <div class="form">
+      ${af("legalName", "Business name", "text", "Northgate Hospitality LLC")}
+      ${af("contact", "Primary contact")}
+      ${af("role", "Contact role", "text", "Owner, GM, Chef")}
+      ${af("email", "Email", "email")}
+      ${af("phone", "Phone", "tel")}
+      ${af("address", "Address")}
+      ${af("locations", "Locations", "number")}
+      ${af("since", "Client since", "date")}
+    </div>
+    <div class="field"><label for="ac_notes">Account notes</label><textarea id="ac_notes" rows="3" data-acct="notes" placeholder="Goals, quirks, who signs off on changes">${h(ac.notes ?? "")}</textarea></div>
+  </section>
   <section class="panel"><header><h3>Client</h3></header>
     <div class="form">
       <div class="field"><label for="s_name">Client name</label><input id="s_name" type="text" data-set="name" value="${h(w.name)}"></div>
@@ -1066,7 +1099,7 @@ function vReadout(w, A) {
     `<div style="display:flex;gap:8px;flex-wrap:wrap">${sample ? `<button class="btn primary" type="button" data-act="draft" ${readoutBusy ? "disabled" : ""}>${readoutBusy ? "Drafting…" : w.readout ? "Redraft with Claude" : "Draft with Claude"}</button>` : ""}
     ${readoutBusy ? `<button class="btn" type="button" data-act="draft-stop">Stop</button>` : ""}<button class="btn" type="button" data-act="copy-readout">Copy text</button><button class="btn" type="button" data-act="export">Export opportunities CSV</button></div>`) + `
   ${!sample ? `<div class="demo-note"><span>Drafting with Claude isn't available in this view. You can still write the readout here.</span></div>` : ""}
-  <section class="panel"><textarea id="readout" class="readout-text" aria-label="Client readout text" placeholder="Press Draft with Claude, or write the summary yourself.">${h(w.readout)}</textarea>
+  <section class="panel"><div class="prepared">${w.logo ? `<img src="${h(w.logo)}" alt="${h(w.name)} logo">` : ""}<div><b>${h(w.account?.legalName || w.name)}</b><small>${h([w.setup.periodLabel, w.account?.contact].filter(Boolean).join(" · ") || "Client readout")}</small></div></div><textarea id="readout" class="readout-text" aria-label="Client readout text" placeholder="Press Draft with Claude, or write the summary yourself.">${h(w.readout)}</textarea>
   <p class="muted" style="font-size:12px">Based on ${A.opps.length} opportunities worth ${money(A.opps.reduce((s, o) => s + o.value, 0))} a year, food cost ${pct(A.fc.actualPct)} actual vs ${pct(A.fc.target, 0)} target.</p></section>`;
 }
 
@@ -1268,6 +1301,24 @@ async function exportCSV() {
   catch { toast("Couldn't save or copy the CSV in this view."); }
 }
 
+/* ---------- logo ---------- */
+async function setLogo(file) {
+  if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) { toast("Use a PNG, JPG, WebP or SVG image."); return; }
+  if (file.size > 8 * 1024 * 1024) { toast("That image is over 8 MB. Use a smaller file."); return; }
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const max = 320, sc = Math.min(1, max / Math.max(img.naturalWidth || max, img.naturalHeight || max));
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round((img.naturalWidth || max) * sc)); c.height = Math.max(1, Math.round((img.naturalHeight || max) * sc));
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    let data = c.toDataURL("image/webp", 0.9);
+    if (!data.startsWith("data:image/webp")) data = c.toDataURL("image/png");
+    if (data.length > 180000) { toast("That logo is too detailed to store. Try a simpler or smaller image."); return; }
+    ws().logo = data; touch(); render(); renderLogo(); toast("Logo saved.");
+  } catch { toast("Couldn't read that image. Try a PNG or JPG."); }
+}
+function renderLogo() { const el = $("#clientLogo"), w = ws(); if (w?.logo) { el.src = w.logo; el.alt = (w.name || "Client") + " logo"; el.hidden = false; } else { el.hidden = true; el.removeAttribute("src"); } }
+
 /* ---------- events ---------- */
 document.addEventListener("click", async e => {
   const sub = e.target.closest("[data-sub]");
@@ -1282,7 +1333,7 @@ document.addEventListener("click", async e => {
     case "delete-yes": {
       const id = currentId;
       if (db && !id.startsWith("local_")) { try { await db.doc("clients/" + id).delete(); } catch (err) { toast("Couldn't delete this client."); return; } }
-      delete clients[id]; if (localMode) saveLocal(); dirty = false; currentId = DEMO_ID; confirmDelete = false; renderClientSel(); renderSaveState(); render(); toast("Client deleted."); break;
+      delete clients[id]; if (localMode) saveLocal(); dirty = false; currentId = DEMO_ID; confirmDelete = false; renderClientSel(); renderSaveState(); render(); renderLogo(); toast("Client deleted."); break;
     }
     case "imp-paste": { const t = $("#imp_paste").value; if (t.trim()) startImport(t, "Pasted text"); else toast("Paste CSV text first."); break; }
     case "imp-cancel": importState = null; render(); break;
@@ -1307,6 +1358,7 @@ document.addEventListener("click", async e => {
     case "draft-stop": readoutAbort?.abort(); break;
     case "copy-readout": { const t = $("#readout"); try { await navigator.clipboard.writeText(t.value); toast("Readout copied."); } catch { t.select(); toast("Text selected. Copy it with your keyboard."); } break; }
     case "export": exportCSV(); break;
+    case "logo-remove": delete w.logo; touch(); render(); renderLogo(); break;
     case "goto-import": subtab = "import"; importState = null; pendingType = b.dataset.type; location.hash = "data"; break;
     case "bench-reset": w.bench = {}; touch(); render(); break;
     case "roll-ask": rollConfirm = true; render(); break;
@@ -1327,10 +1379,12 @@ document.addEventListener("input", e => {
   }
   if (t.id === "readout") { w.readout = t.value; touch(); return; }
   if (t.dataset.set === "name") { w.name = t.value; touch(); renderClientSel(); return; }
+  if (t.dataset.acct) { w.account ||= {}; w.account[t.dataset.acct] = t.type === "number" ? num(t.value) : t.value; touch(); return; }
 });
 document.addEventListener("change", e => {
   const t = e.target, w = ws();
   if (t.id === "clientSel") { switchClient(t.value); return; }
+  if (t.id === "logoFile") { const f = t.files[0]; if (f) setLogo(f); return; }
   if (t.id === "imp_file") { const f = t.files[0]; if (f) f.text().then(x => startImport(x, f.name)); return; }
   if (t.id === "imp_type") { pendingType = t.value; return; }
   if (t.dataset.check) { w.checklist ||= {}; w.checklist[t.dataset.check] = t.checked; touch(); render(); return; }
@@ -1367,7 +1421,7 @@ document.addEventListener("mousemove", e => {
 window.addEventListener("beforeunload", () => { if (dirty) saveNow(); });
 
 /* ---------- boot ---------- */
-readHash(); renderClientSel(); renderSaveState(); render();
+readHash(); renderClientSel(); renderSaveState(); render(); renderLogo();
 (async () => {
   if (!window.claude?.use) { localMode = true; loadLocal(); renderClientSel(); renderSaveState(); return; }
   claude.use("sample").then(s => { sample = s; if (["data", "readout"].includes(tab)) render(); });
@@ -1383,7 +1437,7 @@ readHash(); renderClientSel(); renderSaveState(); render();
       if (d.id === currentId && (dirty || saving)) continue;
       if (lastSavedJSON[d.id] === json && clients[d.id]) continue;
       clients[d.id] = upgrade(clone(data)); lastSavedJSON[d.id] = json;
-      if (d.id === currentId && !document.activeElement?.matches("input,textarea,select")) render();
+      if (d.id === currentId && !document.activeElement?.matches("input,textarea,select")) { render(); renderLogo(); }
     }
     for (const id of Object.keys(clients)) if (!seen.has(id) && !id.startsWith("local_") && !snap.metadata.fromCache) { delete clients[id]; if (currentId === id) { currentId = DEMO_ID; render(); } }
     renderClientSel(); renderSaveState();
