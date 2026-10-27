@@ -1,5 +1,7 @@
 # Margin Desk
 
+Margin Deck F&B project with JB and MH.
+
 A consulting desk for restaurant food cost and labor. For each client it compares what the recipes say the kitchen should use with what the counts say it did use. It ranks the gaps as dollar opportunities and benchmarks the business against the top 20% of similar operators.
 
 ## What's in this repo
