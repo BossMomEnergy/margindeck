@@ -1,0 +1,968 @@
+openapi: 3.1.0
+info:
+  title: Margin Desk Market Data API
+  version: 0.1.0
+  summary: One open format for distributor purchasing data, national commodity prices and GPO / national-account contract pricing.
+  description: |
+    This API gives restaurant consultants and their clients one shape for three kinds of data that today
+    arrive in three different formats:
+
+    1. **Distributor data**: catalogs, account price lists and invoice lines from broadline and
+       specialty distributors (EDI 810/832, CSV portal exports, or a distributor API), normalized here.
+    2. **National commodity prices**: public and licensed market series for the commodities that drive
+       food cost (beef, pork, poultry, eggs, dairy, oils, produce, seafood, grains), with trend signals.
+    3. **Contract pricing**: GPO programs and national-account (NATL) agreements, including market-indexed
+       formulas (index + adder), tiers, rebates and on-contract compliance.
+
+    Combined, these answer the buying question for each client ingredient: what the client pays, what the
+    contract says they should pay, where the national market is, and which way it is heading.
+
+    ## Data sources and licensing
+    Each price point carries a `source` so users can see where a number came from.
+    - Public: USDA AMS Market News (boxed beef cutout, pork, poultry, eggs, dairy, terminal produce markets),
+      USDA ERS food price outlook, BLS CPI and PPI food indices.
+    - Licensed (bring your own license): futures settlements (e.g. CME livestock, dairy and grain contracts) and
+      commercial market reporters (e.g. Urner Barry / Expana). Redistribution follows each license.
+    - Member-authorized: GPO and NATL contract terms are confidential to the member. They are visible only
+      to the tenant that uploaded or authorized them, and never appear in pooled outputs.
+
+    ## Pooled data and privacy
+    Pooled statistics (for example "what operators in this region paid") are only returned when at least
+    `minPoolSize` distinct operators (default 5) contribute, and never expose an individual operator,
+    distributor account or contract price.
+
+    ## Conventions
+    - Money is a decimal string in `currency` (ISO 4217), e.g. "5.4500". No floats for money.
+    - Quantities use UCUM-style unit codes: `[lb_av]`, `[oz_av]`, `[gal_us]`, `kg`, `L`, `{each}`, `{case}`.
+    - Dates are ISO 8601 (`2026-10-26`); timestamps are RFC 3339 UTC.
+    - Lists are cursor-paginated: pass `cursor` from `nextCursor`; `limit` defaults to 100, max 1000.
+    - Every resource is tenant-scoped. A tenant is a consulting firm; a client is one restaurant group.
+  contact:
+    name: Margin Desk
+  license:
+    name: Apache 2.0
+    identifier: Apache-2.0
+servers:
+  - url: https://api.example.com/market/v0
+    description: Placeholder. Replace with the deployed connector service host.
+security:
+  - oauth2: []
+tags:
+  - name: Commodities
+    description: National commodity catalog, price series and outlook.
+  - name: Distributors
+    description: Distributor accounts, catalogs, price lists and invoices.
+  - name: Contracts
+    description: GPO and national-account (NATL) contract pricing and compliance.
+  - name: Mapping
+    description: Links between distributor items, commodities and client ingredients.
+  - name: Buying signals
+    description: Per-client recommendations that combine paid, contract and market prices.
+  - name: Webhooks
+    description: Event subscriptions for price moves and new invoices.
+
+paths:
+  /commodities:
+    get:
+      tags: [Commodities]
+      operationId: listCommodities
+      summary: List tracked commodities
+      parameters:
+        - name: category
+          in: query
+          schema: { $ref: '#/components/schemas/CommodityCategory' }
+        - name: q
+          in: query
+          description: Text search on name and aliases.
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of commodities.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Commodity' } }
+        default: { $ref: '#/components/responses/Error' }
+
+  /commodities/{commodityCode}:
+    get:
+      tags: [Commodities]
+      operationId: getCommodity
+      summary: Get one commodity and its source series
+      parameters: [ { $ref: '#/components/parameters/CommodityCode' } ]
+      responses:
+        '200':
+          description: The commodity.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Commodity' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /commodities/{commodityCode}/prices:
+    get:
+      tags: [Commodities]
+      operationId: listCommodityPrices
+      summary: National or regional price series
+      description: Observed market prices, one point per series per period. Use `source` to pick a series when several exist.
+      parameters:
+        - $ref: '#/components/parameters/CommodityCode'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: interval
+          in: query
+          schema: { type: string, enum: [day, week, month], default: week }
+        - name: region
+          in: query
+          description: '`US` for national, or a region code such as `US-MW` or a terminal market code.'
+          schema: { type: string, default: US }
+        - name: source
+          in: query
+          schema: { type: string }
+          example: usda-ams-lm_xb403
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of price points, oldest first.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/PricePoint' } }
+        default: { $ref: '#/components/responses/Error' }
+
+  /commodities/{commodityCode}/outlook:
+    get:
+      tags: [Commodities]
+      operationId: getCommodityOutlook
+      summary: Trend, seasonality and near-term direction
+      description: |
+        Computed from the price series: recent change, position against the seasonal pattern and a forecast band.
+        The forecast is a statistical estimate, not advice; `method` and `asOf` say how and when it was made.
+      parameters:
+        - $ref: '#/components/parameters/CommodityCode'
+        - name: region
+          in: query
+          schema: { type: string, default: US }
+        - name: horizonWeeks
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 26, default: 8 }
+      responses:
+        '200':
+          description: The outlook.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Outlook' } } }
+        default: { $ref: '#/components/responses/Error' }
+
+  /distributors:
+    get:
+      tags: [Distributors]
+      operationId: listDistributorAccounts
+      summary: Distributor accounts connected for a client
+      parameters:
+        - $ref: '#/components/parameters/ClientIdQuery'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Accounts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/DistributorAccount' } }
+    post:
+      tags: [Distributors]
+      operationId: connectDistributorAccount
+      summary: Connect a distributor account
+      description: Registers how data arrives for one client account (EDI, SFTP drop, portal export or API). Credentials are stored server-side and never returned.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/DistributorAccountCreate' } } }
+      responses:
+        '201':
+          description: Connected.
+          content: { application/json: { schema: { $ref: '#/components/schemas/DistributorAccount' } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+
+  /distributors/{accountId}/catalog:
+    get:
+      tags: [Distributors]
+      operationId: listCatalogItems
+      summary: Distributor items available to this account
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: commodityCode
+          in: query
+          schema: { type: string }
+        - name: updatedSince
+          in: query
+          schema: { type: string, format: date-time }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Catalog items.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/CatalogItem' } }
+
+  /distributors/{accountId}/price-lists:
+    get:
+      tags: [Distributors]
+      operationId: listPriceListEntries
+      summary: Account prices by item and effective date
+      description: Normalized from EDI 832 price catalogs, order-guide exports or a distributor API.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: asOf
+          in: query
+          description: Return the price in effect on this date.
+          schema: { type: string, format: date }
+        - name: sku
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Price list entries.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/PriceListEntry' } }
+
+  /distributors/{accountId}/invoices:
+    get:
+      tags: [Distributors]
+      operationId: listInvoices
+      summary: Invoices with line items
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Invoices, newest first.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Invoice' } }
+    post:
+      tags: [Distributors]
+      operationId: ingestInvoices
+      summary: Push invoices in
+      description: |
+        For sources without an API. Accepts this JSON shape, a CSV export (with a column map) or raw EDI 810.
+        Idempotent on `distributorInvoiceNumber` per account.
+      parameters: [ { $ref: '#/components/parameters/AccountId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoices]
+              properties:
+                invoices: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/Invoice' } }
+          text/csv:
+            schema: { type: string }
+          application/edi-x12:
+            schema: { type: string }
+      responses:
+        '202':
+          description: Accepted for processing.
+          content: { application/json: { schema: { $ref: '#/components/schemas/IngestJob' } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+
+  /contracts:
+    get:
+      tags: [Contracts]
+      operationId: listContracts
+      summary: GPO and national-account contracts this tenant may see
+      parameters:
+        - $ref: '#/components/parameters/ClientIdQuery'
+        - name: type
+          in: query
+          schema: { type: string, enum: [gpo, national_account, regional_account, manufacturer_deal] }
+        - name: activeOn
+          in: query
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Contracts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Contract' } }
+    post:
+      tags: [Contracts]
+      operationId: createContract
+      summary: Register a contract the member has authorized
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Contract' } } }
+      responses:
+        '201':
+          description: Created.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Contract' } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+
+  /contracts/{contractId}/items:
+    get:
+      tags: [Contracts]
+      operationId: listContractItems
+      summary: Contracted items and their pricing terms
+      parameters:
+        - $ref: '#/components/parameters/ContractId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Contract items.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/ContractItem' } }
+
+  /contracts/{contractId}/price:
+    get:
+      tags: [Contracts]
+      operationId: resolveContractPrice
+      summary: Resolve the contract price for an item on a date
+      description: Applies the item's pricing basis. For market-indexed items, looks up the index value for the period and adds the adder.
+      parameters:
+        - $ref: '#/components/parameters/ContractId'
+        - name: contractItemId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: The resolved price and how it was computed.
+          content: { application/json: { schema: { $ref: '#/components/schemas/ResolvedPrice' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /contracts/{contractId}/compliance:
+    get:
+      tags: [Contracts]
+      operationId: getContractCompliance
+      summary: On-contract vs off-contract purchasing for a client
+      parameters:
+        - $ref: '#/components/parameters/ContractId'
+        - $ref: '#/components/parameters/ClientIdQuery'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Compliance summary with the largest leaks first.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Compliance' } } }
+
+  /clients/{clientId}/item-links:
+    get:
+      tags: [Mapping]
+      operationId: listItemLinks
+      summary: Distributor item → commodity → client ingredient links
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+        - name: unlinkedOnly
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Links.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/ItemLink' } }
+    put:
+      tags: [Mapping]
+      operationId: upsertItemLinks
+      summary: Create or update links in bulk
+      parameters: [ { $ref: '#/components/parameters/ClientId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [links]
+              properties:
+                links: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/ItemLink' } }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved: { type: integer }
+
+  /clients/{clientId}/buying-signals:
+    get:
+      tags: [Buying signals]
+      operationId: listBuyingSignals
+      summary: What to do about each major ingredient's price
+      description: |
+        For each linked ingredient: the client's latest paid price, the contract price (if any), the national
+        market price converted to the same unit, the outlook, and a recommended action with its estimated
+        dollar impact over `horizonWeeks`. Sorted by impact, largest first.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+        - name: horizonWeeks
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 26, default: 8 }
+        - name: minImpact
+          in: query
+          description: Only return signals whose estimated impact is at least this many dollars.
+          schema: { $ref: '#/components/schemas/Money' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Buying signals.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/BuyingSignal' } }
+
+  /webhooks:
+    post:
+      tags: [Webhooks]
+      operationId: createWebhook
+      summary: Subscribe to events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, events]
+              properties:
+                url: { type: string, format: uri }
+                events:
+                  type: array
+                  items: { type: string, enum: [invoice.received, price.changed, contract.price_resolved, signal.created, commodity.moved] }
+                clientId: { type: string }
+                commodityCodes: { type: array, items: { type: string } }
+                thresholdPct:
+                  type: number
+                  description: For `price.changed` and `commodity.moved`, only fire when the move is at least this percent.
+                  default: 5
+      responses:
+        '201':
+          description: Subscribed. The signing secret is shown once.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  signingSecret: { type: string }
+
+webhooks:
+  price.changed:
+    post:
+      summary: A client paid a different price for a linked item
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/PriceChangedEvent' } } }
+      responses: { '204': { description: Received. } }
+  commodity.moved:
+    post:
+      summary: A national series moved past the subscriber's threshold
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/CommodityMovedEvent' } } }
+      responses: { '204': { description: Received. } }
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://api.example.com/oauth/token
+          scopes:
+            market:read: Commodity catalog, prices and outlooks
+            distributor:read: Distributor accounts, catalogs, price lists and invoices
+            distributor:write: Connect accounts and push invoices
+            contracts:read: Contracts the tenant may see
+            contracts:write: Register member-authorized contracts
+            signals:read: Mapping and buying signals
+            mapping:write: Edit item links
+            webhooks:write: Manage webhooks
+
+  parameters:
+    Cursor: { name: cursor, in: query, schema: { type: string } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 100 } }
+    CommodityCode: { name: commodityCode, in: path, required: true, schema: { type: string }, example: beef.ground.80-20 }
+    AccountId: { name: accountId, in: path, required: true, schema: { type: string } }
+    ContractId: { name: contractId, in: path, required: true, schema: { type: string } }
+    ClientId: { name: clientId, in: path, required: true, schema: { type: string } }
+    ClientIdQuery: { name: clientId, in: query, required: true, schema: { type: string } }
+
+  responses:
+    Error:
+      description: Error.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    NotFound:
+      description: Not found, or not visible to this tenant.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Invalid:
+      description: The request was understood but failed validation.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  schemas:
+    Money:
+      type: string
+      pattern: '^-?\d+(\.\d{1,4})?$'
+      examples: ['5.4500']
+    Unit:
+      type: string
+      description: UCUM-style unit code.
+      examples: ['[lb_av]', '{case}', '{each}', '[oz_av]', '[gal_us]']
+    Page:
+      type: object
+      properties:
+        nextCursor: { type: [string, 'null'] }
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    CommodityCategory:
+      type: string
+      enum: [beef, pork, poultry, eggs, dairy, seafood, produce, grains, oils, sugar, coffee, paper, other]
+    Commodity:
+      type: object
+      required: [code, name, category, unit]
+      properties:
+        code: { type: string, description: 'Stable dotted code.', examples: [beef.ground.80-20, poultry.wings.whole, eggs.large.white, oil.soybean] }
+        name: { type: string }
+        category: { $ref: '#/components/schemas/CommodityCategory' }
+        unit: { $ref: '#/components/schemas/Unit' }
+        aliases: { type: array, items: { type: string } }
+        series:
+          type: array
+          description: Source series available for this commodity.
+          items:
+            type: object
+            properties:
+              source: { type: string, examples: [usda-ams-lm_xb403, bls-ppi-wpu02210201, cme-le-front] }
+              publisher: { type: string, examples: [USDA AMS Market News, BLS, CME Group] }
+              license: { type: string, enum: [public, licensed, member] }
+              level: { type: string, enum: [wholesale, futures, index, retail, terminal_market] }
+              frequency: { type: string, enum: [daily, weekly, monthly] }
+              region: { type: string }
+    PricePoint:
+      type: object
+      required: [commodityCode, date, price, unit, currency, source]
+      properties:
+        commodityCode: { type: string }
+        date: { type: string, format: date, description: Period start. }
+        interval: { type: string, enum: [day, week, month] }
+        region: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        low: { $ref: '#/components/schemas/Money' }
+        high: { $ref: '#/components/schemas/Money' }
+        unit: { $ref: '#/components/schemas/Unit' }
+        currency: { type: string, default: USD }
+        source: { type: string }
+        isIndex: { type: boolean, description: 'True when the value is an index level (e.g. PPI), not a price.' }
+        revisedAt: { type: [string, 'null'], format: date-time }
+    Outlook:
+      type: object
+      required: [commodityCode, asOf, direction]
+      properties:
+        commodityCode: { type: string }
+        region: { type: string }
+        asOf: { type: string, format: date }
+        latest: { $ref: '#/components/schemas/PricePoint' }
+        changePct:
+          type: object
+          properties:
+            w4: { type: number }
+            w12: { type: number }
+            w52: { type: number }
+        seasonalIndex: { type: number, description: '1.00 = this week is at its multi-year average for the time of year.' }
+        direction: { type: string, enum: [rising, flat, falling] }
+        forecast:
+          type: object
+          properties:
+            horizonWeeks: { type: integer }
+            low: { $ref: '#/components/schemas/Money' }
+            mid: { $ref: '#/components/schemas/Money' }
+            high: { $ref: '#/components/schemas/Money' }
+            confidence: { type: number, minimum: 0, maximum: 1 }
+            method: { type: string, examples: ['seasonal-naive + futures curve', 'ETS'] }
+        drivers: { type: array, items: { type: string }, description: 'Plain-language notes, e.g. "Futures curve slopes up into Q1".' }
+
+    DistributorAccountCreate:
+      type: object
+      required: [clientId, distributor, channel]
+      properties:
+        clientId: { type: string }
+        locationIds: { type: array, items: { type: string } }
+        distributor:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string, examples: [Sysco, US Foods, Gordon Food Service, Performance Foodservice] }
+            gln: { type: string, description: GS1 Global Location Number, when known. }
+            branch: { type: string }
+        accountNumber: { type: string }
+        channel: { type: string, enum: [edi, sftp, portal_export, api, email_pdf, photo] }
+        credentialsRef: { type: string, description: Reference to a secret stored in the connector's vault. Never the secret itself. }
+        schedule: { type: string, description: Cron expression for pulls, in UTC. }
+    DistributorAccount:
+      allOf:
+        - $ref: '#/components/schemas/DistributorAccountCreate'
+        - type: object
+          properties:
+            id: { type: string }
+            status: { type: string, enum: [active, pending, error, paused] }
+            lastSyncAt: { type: [string, 'null'], format: date-time }
+            lastError: { type: [string, 'null'] }
+    Pack:
+      type: object
+      description: 'How a case breaks down, e.g. 6/5# = 6 bags of 5 lb.'
+      required: [innerCount, innerSize, innerUnit]
+      properties:
+        raw: { type: string, examples: ['6/5#', '4/1GAL', '48CT'] }
+        innerCount: { type: number }
+        innerSize: { type: number }
+        innerUnit: { $ref: '#/components/schemas/Unit' }
+        catchWeight: { type: boolean, description: True when billed by actual weight. }
+        netQuantity: { type: number, description: Total in `netUnit` per case. }
+        netUnit: { $ref: '#/components/schemas/Unit' }
+    CatalogItem:
+      type: object
+      required: [sku, description, pack]
+      properties:
+        sku: { type: string }
+        gtin: { type: string, description: GS1 GTIN-14 when available. }
+        description: { type: string }
+        brand: { type: string }
+        manufacturer: { type: string }
+        manufacturerSku: { type: string }
+        pack: { $ref: '#/components/schemas/Pack' }
+        commodityCode: { type: [string, 'null'] }
+        category: { type: string }
+        storage: { type: string, enum: [dry, refrigerated, frozen] }
+        status: { type: string, enum: [active, discontinued, seasonal, out_of_stock] }
+        updatedAt: { type: string, format: date-time }
+    PriceListEntry:
+      type: object
+      required: [sku, price, priceUnit, effectiveFrom]
+      properties:
+        sku: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        priceUnit: { $ref: '#/components/schemas/Unit', description: 'Usually {case}; [lb_av] for catch weight.' }
+        currency: { type: string, default: USD }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: [string, 'null'], format: date }
+        basis: { type: string, enum: [list, contract, deviated, promotional, market] }
+        contractId: { type: [string, 'null'] }
+    InvoiceLine:
+      type: object
+      required: [sku, description, quantity, quantityUnit, unitPrice, extendedPrice]
+      properties:
+        lineNumber: { type: integer }
+        sku: { type: string }
+        gtin: { type: string }
+        description: { type: string }
+        pack: { $ref: '#/components/schemas/Pack' }
+        quantity: { type: number, description: Units shipped, in `quantityUnit`. }
+        quantityUnit: { $ref: '#/components/schemas/Unit' }
+        catchWeight: { type: number, description: Actual weight billed, when catch weight. }
+        unitPrice: { $ref: '#/components/schemas/Money' }
+        extendedPrice: { $ref: '#/components/schemas/Money' }
+        fees: { $ref: '#/components/schemas/Money', description: Fuel, split-case or delivery fees on this line. }
+        isCredit: { type: boolean, default: false }
+        creditReason: { type: string, enum: [return, short, damaged, mispick, price_adjustment, other] }
+        contractId: { type: [string, 'null'], description: Set when the distributor billed against a contract. }
+        glCategory: { type: string, examples: [food, beverage, paper, chemical] }
+    Invoice:
+      type: object
+      required: [distributorInvoiceNumber, invoiceDate, lines]
+      properties:
+        id: { type: string, readOnly: true }
+        distributorInvoiceNumber: { type: string }
+        invoiceDate: { type: string, format: date }
+        deliveryDate: { type: string, format: date }
+        locationId: { type: string }
+        currency: { type: string, default: USD }
+        subtotal: { $ref: '#/components/schemas/Money' }
+        tax: { $ref: '#/components/schemas/Money' }
+        total: { $ref: '#/components/schemas/Money' }
+        source: { type: string, enum: [edi_810, csv, api, ocr], readOnly: true }
+        lines: { type: array, items: { $ref: '#/components/schemas/InvoiceLine' } }
+    IngestJob:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [queued, processing, done, failed] }
+        accepted: { type: integer }
+        rejected:
+          type: array
+          items:
+            type: object
+            properties:
+              index: { type: integer }
+              problem: { $ref: '#/components/schemas/Problem' }
+
+    Contract:
+      type: object
+      required: [name, type, effectiveFrom]
+      properties:
+        id: { type: string, readOnly: true }
+        name: { type: string }
+        type: { type: string, enum: [gpo, national_account, regional_account, manufacturer_deal] }
+        program: { type: string, description: 'GPO or program name, as the member knows it.' }
+        tier: { type: string, description: 'Volume or membership tier, if the program has tiers.' }
+        distributors: { type: array, items: { type: string }, description: Distributors authorized to bill against it. }
+        clientIds: { type: array, items: { type: string }, description: Clients covered by this contract. }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: [string, 'null'], format: date }
+        priceReview: { type: string, enum: [weekly, monthly, quarterly, fixed_term], description: How often market-indexed prices reset. }
+        confidentiality: { type: string, enum: [member_only], default: member_only, readOnly: true }
+        authorizedBy: { type: string, description: Who at the member authorized sharing with this tenant. }
+    ContractItem:
+      type: object
+      required: [id, basis]
+      properties:
+        id: { type: string }
+        sku: { type: string }
+        manufacturerSku: { type: string }
+        gtin: { type: string }
+        description: { type: string }
+        commodityCode: { type: [string, 'null'] }
+        pack: { $ref: '#/components/schemas/Pack' }
+        basis:
+          type: string
+          enum: [fixed, cost_plus, market_indexed]
+          description: |
+            fixed: one price for the term.
+            cost_plus: distributor landed cost + markup (`markupPct` or `adder`).
+            market_indexed: index value for the period + `adder`, optionally bounded by `floor` and `cap`.
+        fixedPrice: { $ref: '#/components/schemas/Money' }
+        markupPct: { type: number }
+        index:
+          type: object
+          properties:
+            source: { type: string, description: A series id from /commodities. }
+            lagWeeks: { type: integer, description: 'Which index period applies (e.g. prior week''s average).', default: 1 }
+            averaging: { type: string, enum: [daily_avg, weekly_avg, monthly_avg], default: weekly_avg }
+            conversion: { type: number, description: Multiplier from the index unit to the price unit. }
+        adder: { $ref: '#/components/schemas/Money' }
+        floor: { $ref: '#/components/schemas/Money' }
+        cap: { $ref: '#/components/schemas/Money' }
+        priceUnit: { $ref: '#/components/schemas/Unit' }
+        rebate:
+          type: object
+          description: Manufacturer or GPO rebate earned on purchases, paid back later.
+          properties:
+            amount: { $ref: '#/components/schemas/Money' }
+            per: { $ref: '#/components/schemas/Unit' }
+            pct: { type: number }
+            paidBy: { type: string, enum: [manufacturer, gpo, distributor] }
+    ResolvedPrice:
+      type: object
+      properties:
+        contractItemId: { type: string }
+        date: { type: string, format: date }
+        price: { $ref: '#/components/schemas/Money' }
+        priceUnit: { $ref: '#/components/schemas/Unit' }
+        netOfRebate: { $ref: '#/components/schemas/Money' }
+        workings:
+          type: object
+          description: Each input used, so the number can be audited.
+          properties:
+            basis: { type: string }
+            indexValue: { $ref: '#/components/schemas/Money' }
+            indexPeriod: { type: string }
+            adder: { $ref: '#/components/schemas/Money' }
+            boundedBy: { type: [string, 'null'], enum: [floor, cap, null] }
+    Compliance:
+      type: object
+      properties:
+        contractId: { type: string }
+        clientId: { type: string }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        eligibleSpend: { $ref: '#/components/schemas/Money' }
+        onContractSpend: { $ref: '#/components/schemas/Money' }
+        compliancePct: { type: number }
+        overpaid: { $ref: '#/components/schemas/Money', description: Paid above the resolved contract price on contract items. }
+        missedRebates: { $ref: '#/components/schemas/Money' }
+        leaks:
+          type: array
+          description: Largest first.
+          items:
+            type: object
+            properties:
+              sku: { type: string }
+              description: { type: string }
+              kind: { type: string, enum: [off_contract_substitute, billed_above_contract, missing_rebate_claim] }
+              spend: { $ref: '#/components/schemas/Money' }
+              overpaid: { $ref: '#/components/schemas/Money' }
+              suggestedSku: { type: string }
+
+    ItemLink:
+      type: object
+      required: [accountId, sku]
+      properties:
+        accountId: { type: string }
+        sku: { type: string }
+        description: { type: string, readOnly: true }
+        commodityCode: { type: [string, 'null'] }
+        ingredientId: { type: [string, 'null'], description: The client's ingredient in Margin Desk. }
+        ingredientUnit: { $ref: '#/components/schemas/Unit' }
+        unitsPerPack: { type: number, description: How many ingredient units one billed unit yields (a 10# case = 10 lb). }
+        yieldPct: { type: number, default: 100, description: Usable share after trim or cooking loss, when the commodity is bought raw. }
+        confidence: { type: number, minimum: 0, maximum: 1, readOnly: true, description: 'For suggested links. 1 = confirmed by a person.' }
+        confirmedBy: { type: [string, 'null'] }
+
+    BuyingSignal:
+      type: object
+      required: [ingredientId, action, impact]
+      properties:
+        ingredientId: { type: string }
+        ingredientName: { type: string }
+        commodityCode: { type: string }
+        unit: { $ref: '#/components/schemas/Unit' }
+        paid:
+          type: object
+          properties:
+            price: { $ref: '#/components/schemas/Money' }
+            date: { type: string, format: date }
+            accountId: { type: string }
+        contract:
+          type: [object, 'null']
+          properties:
+            contractId: { type: string }
+            price: { $ref: '#/components/schemas/Money' }
+        market:
+          type: object
+          properties:
+            price: { $ref: '#/components/schemas/Money', description: National price converted to the ingredient unit. }
+            source: { type: string }
+            outlook: { $ref: '#/components/schemas/Outlook' }
+        pooled:
+          type: [object, 'null']
+          description: What similar operators paid. Present only when at least minPoolSize operators contribute.
+          properties:
+            median: { $ref: '#/components/schemas/Money' }
+            p20: { $ref: '#/components/schemas/Money', description: The price the best-buying 20% paid or better. }
+            operators: { type: integer }
+            minPoolSize: { type: integer, default: 5 }
+        weeklyUsage: { type: number, description: From the client's recent invoices or theoretical usage. }
+        action:
+          type: string
+          enum: [lock_price, buy_forward, hold, switch_to_contract_item, rebid, review_menu_price, file_rebate_claim]
+        rationale: { type: string, description: 'Plain language, e.g. "Paying 9% above contract; market rising 6% over 8 weeks."' }
+        impact:
+          type: object
+          properties:
+            amount: { $ref: '#/components/schemas/Money' }
+            horizonWeeks: { type: integer }
+            direction: { type: string, enum: [save, avoid_increase] }
+        affectedMenuItems: { type: array, items: { type: string } }
+
+    PriceChangedEvent:
+      type: object
+      properties:
+        id: { type: string }
+        occurredAt: { type: string, format: date-time }
+        clientId: { type: string }
+        accountId: { type: string }
+        sku: { type: string }
+        ingredientId: { type: [string, 'null'] }
+        previous: { $ref: '#/components/schemas/Money' }
+        current: { $ref: '#/components/schemas/Money' }
+        changePct: { type: number }
+        contractPrice: { $ref: '#/components/schemas/Money' }
+    CommodityMovedEvent:
+      type: object
+      properties:
+        id: { type: string }
+        occurredAt: { type: string, format: date-time }
+        commodityCode: { type: string }
+        source: { type: string }
+        previous: { $ref: '#/components/schemas/PricePoint' }
+        current: { $ref: '#/components/schemas/PricePoint' }
+        changePct: { type: number }

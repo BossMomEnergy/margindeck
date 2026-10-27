@@ -1,0 +1,1394 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Margin Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a sticky working header (client + tabs) over one wide work surface; every analysis view leads with its summary, then the detail table. */
+:root {
+  --bg: #f3f6f5;
+  --surface: #ffffff;
+  --surface-2: #eaf0ee;
+  --ink: #13201e;
+  --muted: #566764;
+  --line: #d6dfdc;
+  --accent: #1d6a64;
+  --accent-ink: #ffffff;
+  --accent-soft: #d9ece9;
+  --series-1: #2a78d6;
+  --over: #e34948;
+  --under: #2a78d6;
+  --mid: #e2e6e4;
+  --good: #0a7d0a;
+  --warn: #9a6200;
+  --warn-bg: #fdf0d3;
+  --crit: #c03535;
+  --crit-bg: #fbe2e0;
+  --good-bg: #dff1df;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1514; --surface: #161f1e; --surface-2: #1d2827; --ink: #e5eeec; --muted: #9aaca8;
+    --line: #2b3836; --accent: #4fb0a6; --accent-ink: #08201d; --accent-soft: #1d3633;
+    --series-1: #3987e5; --over: #e66767; --under: #3987e5; --mid: #2c3533;
+    --good: #46c046; --warn: #f0b440; --warn-bg: #3a2e12; --crit: #ef7a7a; --crit-bg: #3d1e1e; --good-bg: #173219;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1514; --surface: #161f1e; --surface-2: #1d2827; --ink: #e5eeec; --muted: #9aaca8;
+  --line: #2b3836; --accent: #4fb0a6; --accent-ink: #08201d; --accent-soft: #1d3633;
+  --series-1: #3987e5; --over: #e66767; --under: #3987e5; --mid: #2c3533;
+  --good: #46c046; --warn: #f0b440; --warn-bg: #3a2e12; --crit: #ef7a7a; --crit-bg: #3d1e1e; --good-bg: #173219;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h2 { font-size: 22px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; }
+.num, td.n, th.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.bar { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding-block: 12px 8px; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 { font-size: 21px; letter-spacing: -0.01em; }
+.brand span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.client { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.client label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+select, input[type=text], input[type=number], input[type=date], textarea {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; min-width: 0;
+}
+select { padding-right: 24px; }
+textarea { width: 100%; resize: vertical; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--accent); padding-inline: 6px; }
+.btn.danger { color: var(--crit); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; font-weight: 500; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.ok { color: var(--good); background: var(--good-bg); }
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+.pill.crit { color: var(--crit); background: var(--crit-bg); }
+.pill.plain::before { display: none; }
+
+.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+.tabs a { padding: 9px 10px 10px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 13px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs a:hover { color: var(--ink); }
+.tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tabs .sep { width: 1px; background: var(--line); margin: 8px 6px; flex: none; }
+
+main { padding-block: 24px 64px; display: grid; gap: 20px; }
+.head { display: flex; justify-content: space-between; align-items: end; gap: 12px 24px; flex-wrap: wrap; }
+.head p { color: var(--muted); max-width: 68ch; margin-top: 4px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.panel > header { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.panel > header p { color: var(--muted); font-size: 13px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; }
+.demo-note { background: var(--accent-soft); border-radius: var(--r); padding: 10px 14px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.kpi .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.kpi .val { font-family: var(--f-display); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.kpi .sub { font-size: 12px; color: var(--muted); }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 9px 10px; border-bottom: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+th.n, td.n { text-align: right; white-space: nowrap; }
+td.muted, .muted { color: var(--muted); }
+tr.flag td:first-child { box-shadow: inset 3px 0 0 var(--crit); }
+td input[type=number] { width: 88px; text-align: right; font-family: var(--f-mono); padding: 4px 6px; }
+td input[type=text] { width: 100%; min-width: 140px; padding: 4px 6px; }
+td select { max-width: 240px; padding: 4px 22px 4px 6px; }
+tfoot td { font-weight: 700; background: var(--surface-2); }
+
+.div-bar { position: relative; width: 120px; height: 12px; }
+.div-bar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); opacity: .5; }
+.div-bar i { position: absolute; top: 1px; height: 10px; border-radius: 0 3px 3px 0; }
+.div-bar i.over { left: 50%; background: var(--over); }
+.div-bar i.under { right: 50%; background: var(--under); border-radius: 3px 0 0 3px; }
+
+.tickets { display: grid; gap: 10px; }
+.ticket { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.ticket .rank { font-family: var(--f-display); font-size: 20px; font-weight: 700; color: var(--muted); line-height: 1.2; }
+.ticket .body { display: grid; gap: 4px; min-width: 0; }
+.ticket .body h3 { font-size: 15px; }
+.ticket .body p { color: var(--muted); font-size: 13px; }
+.ticket .body .act { color: var(--ink); }
+.ticket .amt { text-align: right; }
+.ticket .amt b { font-family: var(--f-display); font-size: 22px; font-variant-numeric: tabular-nums; display: block; line-height: 1.1; }
+.ticket .amt small { color: var(--muted); font-size: 11px; }
+.ticket .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+@media (max-width: 560px) { .ticket { grid-template-columns: 26px minmax(0, 1fr); } .ticket .amt { grid-column: 2; text-align: left; } }
+
+.review { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.review ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.review li { display: grid; gap: 2px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); font-size: 13px; }
+.review li:last-child { border-bottom: 0; padding-bottom: 0; }
+.review li span { color: var(--muted); font-size: 12px; }
+
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px 18px; }
+.field { display: grid; gap: 4px; align-content: start; }
+.field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.field small { color: var(--muted); font-size: 12px; }
+.field input, .field select { width: 100%; }
+
+.subtabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.subtabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
+.subtabs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.subtabs .count { font-family: var(--f-mono); font-size: 11px; margin-left: 4px; opacity: .8; }
+
+.drop { border: 1.5px dashed var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 10px; justify-items: start; background: var(--surface-2); }
+.drop.over { border-color: var(--accent); }
+.maprow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px 14px; }
+
+.chart { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-family: var(--f-body); font-size: 11px; }
+.chart .lbl-strong { fill: var(--ink); font-weight: 600; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--muted); stroke-width: 1; opacity: .6; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 6px; max-width: 260px; box-shadow: 0 4px 14px rgb(0 0 0 / .18); white-space: pre-line; }
+
+.conn { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.conn .panel h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.conn dl { margin: 0; display: grid; gap: 8px; font-size: 13px; }
+.conn dt { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.conn dd { margin: 0; }
+.readout-text { min-height: 360px; font-family: var(--f-body); line-height: 1.6; padding: 14px; }
+.empty { padding: 28px; text-align: center; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 8px; font-size: 13px; max-width: min(420px, calc(100vw - 32px)); }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--crit-bg); padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+.recipe { border: 1px solid var(--line); border-radius: var(--r); }
+.recipe summary { cursor: pointer; padding: 10px 14px; display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; }
+.recipe summary b { margin-right: auto; }
+.recipe .inner { padding: 0 14px 14px; display: grid; gap: 10px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand"><h1>Margin Desk</h1><span>Food cost consulting</span></div>
+      <div class="client">
+        <label for="clientSel">Client</label>
+        <select id="clientSel" aria-label="Choose client"></select>
+        <button class="btn" id="newClientBtn" type="button">New client</button>
+        <span id="saveState" class="pill">Demo</span>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Views"></nav>
+  </div>
+</div>
+<div class="wrap"><main id="main"></main></div>
+<div id="tip" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const h = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = v => { const n = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(/[$,%\s]/g, "")); return Number.isFinite(n) ? n : null; };
+const fmt = (n, d = 0) => n == null || !Number.isFinite(n) ? "–" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const money = (n, d = 0) => n == null || !Number.isFinite(n) ? "–" : (n < 0 ? "−$" : "$") + fmt(Math.abs(n), d);
+const signedMoney = n => n == null ? "–" : (n > 0 ? "+" : "") + money(n);
+const pct = (n, d = 1) => n == null || !Number.isFinite(n) ? "–" : fmt(n * 100, d) + "%";
+const uid = p => p + Math.random().toString(36).slice(2, 9);
+const clone = o => JSON.parse(JSON.stringify(o));
+const norm = s => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+let toastTimer;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3600); }
+
+/* ---------- system catalog ---------- */
+const SYSTEMS = {
+  pos: {
+    "Toast": { gives: "Item-level sales with modifiers, voids, comps, discounts, dayparts and revenue centers; full menu configuration.", access: "Standard API access is self-service for restaurant operators. The Orders and Menus APIs cover what Margin Desk needs. Analytics API access comes with Toast's higher tiers; productized integrations go through Toast's partner program.", first: true },
+    "Square": { gives: "Orders with line items and modifiers, catalog items and variations, discounts, locations.", access: "Open developer platform. Each client authorizes with OAuth; Orders and Catalog APIs." },
+    "Clover": { gives: "Orders, line items, modifiers, discounts, item catalog per merchant.", access: "Developer platform with a REST API. A merchant installs your app; distribution requires Clover app approval." },
+    "Lightspeed": { gives: "Sales receipts, menu items, modifiers and floors/revenue centers.", access: "Developer program with OAuth API access for Lightspeed Restaurant." },
+    "Other / export only": { gives: "Item sales report: item name, quantity sold, net sales.", access: "Import a product-mix or item sales CSV for each period." }
+  },
+  purchasing: {
+    "MarginEdge": { gives: "Invoice line items with vendor, product, pack size, unit price, credits; product and category lists.", access: "Public API. Keys are issued from MarginEdge's developer portal for authorized parties.", first: true },
+    "xtraCHEF (Toast)": { gives: "Invoice line items, vendor items, recipe costing.", access: "Part of Toast. Access runs through Toast's integration channels; confirm what your client's plan exposes." },
+    "Restaurant365": { gives: "AP invoices, vendor items, GL coding, inventory counts.", access: "API and data access typically enabled per customer by Restaurant365." },
+    "Direct distributor invoices": { gives: "Sysco, US Foods, GFS: invoice lines with SKU, pack, price.", access: "Usually EDI or CSV exports from the distributor's portal rather than an open API. Invoice photos can be read by an AI model as a fallback." },
+    "Other / export only": { gives: "Invoice line export: date, vendor, description, quantity, pack, price.", access: "Import a CSV for each period." }
+  },
+  accounting: {
+    "QuickBooks Online": { gives: "Profit and loss by period, with food and beverage sales and COGS accounts.", access: "Accounting API with OAuth. Pull the P&L report for the count period." },
+    "Xero": { gives: "Profit and loss by period and tracking category.", access: "Accounting API with OAuth. Pull the P&L report for the count period." },
+    "Restaurant365": { gives: "GL and P&L by location and period.", access: "Enabled per customer by Restaurant365." },
+    "Other / manual": { gives: "Food sales and food COGS for the period.", access: "Type the two numbers into Client setup." }
+  }
+};
+
+/* ---------- import field definitions ---------- */
+const DATASETS = {
+  sales: { label: "POS item sales", fields: [
+    { k: "item", label: "Menu item (POS name)", req: true, syn: ["item", "menu item", "item name", "name", "product", "menu item name", "description", "selection"] },
+    { k: "qty", label: "Quantity sold", req: true, syn: ["qty", "quantity", "qty sold", "item qty", "count", "sold", "units", "number sold"] },
+    { k: "revenue", label: "Net sales $", req: false, syn: ["net sales", "sales", "revenue", "net amount", "amount", "net", "gross sales", "total"] } ] },
+  invoices: { label: "Invoice lines", fields: [
+    { k: "date", label: "Invoice date", req: false, syn: ["date", "invoice date", "inv date", "delivery date"] },
+    { k: "vendor", label: "Vendor", req: false, syn: ["vendor", "supplier", "distributor", "vendor name"] },
+    { k: "desc", label: "Item description", req: true, syn: ["description", "item", "product", "item description", "product name", "vendor item"] },
+    { k: "qty", label: "Packs received", req: true, syn: ["qty", "quantity", "cases", "qty shipped", "shipped", "units", "received"] },
+    { k: "packUnits", label: "Units per pack", req: false, syn: ["pack units", "units per pack", "pack", "pack size", "each per case", "case size"] },
+    { k: "packCost", label: "Cost per pack $", req: true, syn: ["price", "unit price", "case price", "cost", "pack price", "price per case"] } ] },
+  counts: { label: "Inventory counts", fields: [
+    { k: "ingredient", label: "Ingredient", req: true, syn: ["ingredient", "item", "product", "name", "description"] },
+    { k: "begin", label: "Beginning count", req: false, syn: ["beginning", "begin", "beginning count", "opening", "start", "bop"] },
+    { k: "end", label: "Ending count", req: false, syn: ["ending", "end", "ending count", "closing", "on hand", "eop"] },
+    { k: "waste", label: "Waste", req: false, syn: ["waste", "spoilage", "waste qty", "loss"] },
+    { k: "transfer", label: "Transfers out", req: false, syn: ["transfer", "transfers", "transfer out", "transfers out"] } ] },
+  recipes: { label: "Recipe lines", fields: [
+    { k: "recipe", label: "Recipe / menu item", req: true, syn: ["recipe", "menu item", "item", "dish", "recipe name"] },
+    { k: "price", label: "Menu price $", req: false, syn: ["price", "menu price", "sell price", "selling price"] },
+    { k: "ingredient", label: "Ingredient", req: true, syn: ["ingredient", "component", "ingredient name"] },
+    { k: "qty", label: "Quantity (ingredient units)", req: true, syn: ["qty", "quantity", "amount", "portion"] },
+    { k: "unit", label: "Unit", req: false, syn: ["unit", "uom", "units"] } ] },
+  hourly: { label: "Hourly sales & labor", fields: [
+    { k: "hour", label: "Hour of day (0–23)", req: true, syn: ["hour", "hour of day", "time", "interval", "time period", "hr"] },
+    { k: "sales", label: "Net sales $", req: true, syn: ["net sales", "sales", "revenue", "net amount", "total sales"] },
+    { k: "guests", label: "Guests", req: false, syn: ["guests", "covers", "guest count", "checks", "orders"] },
+    { k: "hours", label: "Labor hours", req: true, syn: ["labor hours", "hours", "hours worked", "total hours", "regular hours"] },
+    { k: "cost", label: "Labor $", req: false, syn: ["labor cost", "labor", "wages", "labor $", "pay", "total pay"] } ] },
+  ingredients: { label: "Ingredient list", fields: [
+    { k: "name", label: "Ingredient", req: true, syn: ["name", "ingredient", "item", "product"] },
+    { k: "unit", label: "Count unit", req: false, syn: ["unit", "uom", "count unit"] },
+    { k: "cost", label: "Cost per unit $", req: false, syn: ["cost", "unit cost", "price", "cost per unit"] },
+    { k: "cat", label: "Category", req: false, syn: ["category", "cat", "group", "type"] } ] }
+};
+
+/* ---------- benchmarks ----------
+   Starting values only: replace with a licensed benchmark source for each segment. dir -1 = lower is better. */
+const BENCH_METRICS = [
+  { k: "foodPct", label: "Food cost %", unit: "%", dir: -1, note: "Actual food COGS ÷ food sales" },
+  { k: "gapPts", label: "Theoretical → actual gap", unit: "pts", dir: -1, note: "Unexplained food usage" },
+  { k: "laborPct", label: "Labor cost %", unit: "%", dir: -1, note: "Hourly labor ÷ total sales" },
+  { k: "primePct", label: "Prime cost %", unit: "%", dir: -1, note: "(COGS + labor) ÷ total sales" },
+  { k: "splh", label: "Sales per labor hour", unit: "$", dir: 1, note: "Total sales ÷ labor hours" },
+  { k: "wastePct", label: "Waste % of food used", unit: "%", dir: -1, note: "Logged waste ÷ actual food COGS" }
+];
+const BENCH_SEGMENTS = {
+  "Bar & tavern": { foodPct: [31, 28], gapPts: [2.5, 1], laborPct: [31, 26], primePct: [62, 56], splh: [48, 62], wastePct: [4, 2] },
+  "Full-service casual": { foodPct: [31, 28], gapPts: [2.5, 1], laborPct: [33, 28], primePct: [64, 58], splh: [45, 58], wastePct: [4, 2] },
+  "Fast casual": { foodPct: [30, 27], gapPts: [2, 1], laborPct: [29, 24], primePct: [60, 54], splh: [55, 75], wastePct: [4, 2] },
+  "Quick service": { foodPct: [30, 26], gapPts: [1.5, 0.8], laborPct: [27, 22], primePct: [58, 50], splh: [60, 85], wastePct: [3, 1.5] }
+};
+
+/* ---------- repeatable period checklist ---------- */
+const CHECKLIST = [
+  { role: "IT specialist", steps: [
+    ["it1", "Confirm access to the POS, purchasing and accounting systems", "Connector credentials or export permissions for each system in Client setup."],
+    ["it2", "Schedule the period exports or API pulls", "Item sales, hourly sales & labor, invoice lines and the P&L, on the same dates as the counts."],
+    ["it3", "Check the data landed complete", "Row counts and totals match the POS sales summary and the invoice total for the period."] ] },
+  { role: "Data entry assistant", steps: [
+    ["de1", "Import POS item sales and hourly sales & labor", "Data & mapping → Import CSV."],
+    ["de2", "Import invoice lines", "Check units per pack on any new vendor items."],
+    ["de3", "Map new POS items and vendor items", "Clear every open item under Menu mapping and Vendor mapping."],
+    ["de4", "Enter counts, waste and transfers", "Count sheet, in each ingredient's unit."],
+    ["de5", "Enter the P&L numbers", "Client setup → P&L for this period."],
+    ["de6", "Work the data gaps list", "Opportunities → Review list → Data gaps."] ] },
+  { role: "Consultant", steps: [
+    ["co1", "Review flagged ingredients and ranked tickets", "Consumption and Opportunities."],
+    ["co2", "Compare against the top 20%", "Benchmarks: pick the client's segment and check the gaps."],
+    ["co3", "Draft and edit the client readout", "Client readout → Draft with Claude, then edit."],
+    ["co4", "Agree on 30-day actions with the client", "Export the opportunities CSV for the meeting."] ] }
+];
+
+/* ---------- demo client ---------- */
+function buildDemo() {
+  // [id, name, unit, category, vendor, invoice description, units per pack, weekly pack prices, begin, actual use (incl. waste), waste, transfers out]
+  const I = [
+    ["beef", "Ground beef 80/20", "lb", "Protein", "Sysco", "GRND BEEF 80/20 FRSH 10#", 10, [49, 49, 52.5, 54.5], 38, 418, 4, 0],
+    ["bun", "Brioche bun", "ea", "Bakery", "Sysco", "BUN BRIOCHE 4IN 48CT", 48, [26.4], 60, 1068, 25, 0],
+    ["ched", "Cheddar slice", "slice", "Dairy", "Sysco", "CHS CHDR SLCD 160CT", 160, [35.2], 120, 2105, 0, 0],
+    ["bacon", "Bacon", "slice", "Protein", "Sysco", "BACON LAYFLAT 18/22 15#", 300, [96, 96, 99, 99], 180, 1755, 10, 40],
+    ["fries", "Fries, frozen 3/8\"", "lb", "Frozen", "Sysco", "FRY 3/8 SS 6/5#", 30, [40.5], 60, 622, 12, 0],
+    ["wings", "Chicken wings", "lb", "Protein", "Sysco", "CHIX WING 1&2 JNT 40#", 40, [152, 152, 156, 156], 50, 609, 6, 0],
+    ["buff", "Buffalo sauce", "oz", "Sauces", "Sysco", "SAUCE BUFFALO 4/1GAL", 512, [58], 200, 1150, 0, 0],
+    ["rom", "Romaine hearts", "lb", "Produce", "Hillside Produce", "ROMAINE HEARTS 18#", 18, [34, 34, 36, 36], 20, 176, 18, 0],
+    ["caes", "Caesar dressing", "oz", "Sauces", "Sysco", "DRSG CAESAR 4/1GAL", 512, [62], 150, 790, 0, 0],
+    ["parm", "Parmesan, shredded", "oz", "Dairy", "Sysco", "CHS PARM SHRD 4/5#", 320, [208], 80, 236, 0, 0],
+    ["chix", "Chicken breast", "lb", "Protein", "Sysco", "CHIX BRST BNLS 4/10#", 40, [136], 40, 205, 0, 0],
+    ["tort", "Flour tortilla 6\"", "ea", "Bakery", "Sysco", "TORT FLOUR 6IN 12/12CT", 144, [39.6], 100, 1010, 0, 0],
+    ["avo", "Avocado", "ea", "Produce", "Hillside Produce", "AVOCADO HASS 48CT", 48, [50.4, 55.2, 62.4, 69.6], 20, 181, 9, 0],
+    ["salm", "Salmon fillet", "lb", "Seafood", "Coastline Seafood", "SALMON ATL FLT SKN/OFF 10#", 10, [138, 138, 140, 140], 6, 50, 1.5, 0],
+    ["rice", "Jasmine rice", "lb", "Dry goods", "Sysco", "RICE JASMINE 25#", 25, [21.25], 30, 35, 0, 0],
+    ["pretz", "Soft pretzel", "ea", "Frozen", "Sysco", "PRETZEL BAV 10OZ 24CT", 24, [26.4], 40, 392, 6, 0],
+    ["bchz", "Beer cheese", "oz", "Sauces", "Sysco", "CHS SCE CHDR 6/#10", 636, [78], 160, 1610, 0, 0],
+    ["cod", "Cod loin", "lb", "Seafood", "Coastline Seafood", "COD LOIN 10#", 10, [119], 8, 112, 2, 0],
+    ["batt", "Beer batter mix", "oz", "Dry goods", "Sysco", "BATTER MIX BEER 6/5#", 480, [54], 120, 640, 0, 0]
+  ];
+  const dates = ["2026-09-30", "2026-10-07", "2026-10-14", "2026-10-21"];
+  const ingredients = [], invoices = [], counts = {}, vendorMap = {};
+  for (const [id, name, unit, cat, vendor, desc, pack, prices, begin, actual, waste, transfer] of I) {
+    const cases = Math.ceil((actual + transfer) / pack);
+    const perWeek = [0, 0, 0, 0];
+    for (let c = 0; c < cases; c++) perWeek[c % 4]++;
+    perWeek.forEach((q, w) => { if (q) invoices.push({ date: dates[w], vendor, desc, qty: q, packUnits: pack, packCost: prices[Math.min(w, prices.length - 1)] }); });
+    const purchased = cases * pack;
+    ingredients.push({ id, name, unit, cat, cost: +(prices[0] / pack).toFixed(4) });
+    counts[id] = { begin, end: +(begin + purchased - transfer - actual).toFixed(2), waste, transfer };
+    vendorMap[desc] = id;
+  }
+  const R = (id, name, price, cat, lines) => ({ id, name, price, cat, yieldPct: 100, lines: lines.map(([ing, qty]) => ({ ing, qty })) });
+  const recipes = [
+    R("r_tav", "Tavern Burger", 15, "Entrée", [["beef", .375], ["bun", 1], ["ched", 2], ["fries", .33]]),
+    R("r_bac", "Bacon Burger", 17, "Entrée", [["beef", .375], ["bun", 1], ["ched", 2], ["bacon", 3], ["fries", .33]]),
+    R("r_wing", "Wings (10)", 15.5, "Shareable", [["wings", 1.1], ["buff", 2]]),
+    R("r_cs", "Caesar Salad", 12, "Salad", [["rom", .4], ["caes", 2], ["parm", .5]]),
+    R("r_ccs", "Chicken Caesar", 16, "Salad", [["rom", .4], ["caes", 2], ["parm", .5], ["chix", .375]]),
+    R("r_taco", "Chicken Tacos", 14, "Entrée", [["chix", .3], ["tort", 3], ["avo", .5]]),
+    R("r_salm", "Grilled Salmon", 26, "Entrée", [["salm", .5], ["rice", .35]]),
+    R("r_pretz", "Pretzel & Beer Cheese", 11, "Shareable", [["pretz", 1], ["bchz", 4]]),
+    R("r_fish", "Fish & Chips", 19, "Entrée", [["cod", .5], ["batt", 3], ["fries", .4]]),
+    R("r_fry", "Side Fries", 5, "Side", [["fries", .4]]),
+    R("r_addb", "Add Bacon", 2.5, "Modifier", [["bacon", 2]])
+  ];
+  const S = [["TAVERN BURGER", 620, 15, "r_tav"], ["BACON BRGR", 410, 17, "r_bac"], ["WINGS 10PC", 540, 15.5, "r_wing"], ["CAESAR SM", 120, 12, "r_cs"],
+    ["CHX CAESAR", 260, 16, "r_ccs"], ["CHX TACOS", 330, 14, "r_taco"], ["SALMON PLATE", 95, 26, "r_salm"], ["PRETZEL BC", 380, 11, "r_pretz"],
+    ["FISH N CHIPS", 210, 19, "r_fish"], ["SIDE FRY", 300, 5, "r_fry"], ["ADD BACON", 180, 2.5, "r_addb"], ["SOUP OF DAY", 140, 7, null]];
+  const sales = S.map(([item, qty, p]) => ({ item, qty, revenue: Math.round(qty * p * 0.97) }));
+  const posMap = {}; S.forEach(([item, , , r]) => { if (r) posMap[item] = r; });
+  const ws = {
+    v: 1, name: "Northgate Tavern (demo)",
+    setup: { pos: "Toast", purchasing: "MarginEdge", accounting: "QuickBooks Online", target: 28, periodDays: 28, threshold: 5, periodLabel: "Sep 29 – Oct 26, 2026", segment: "Bar & tavern", splhTarget: 50, minStaff: 3 },
+    ingredients, recipes, sales, invoices, counts, posMap, vendorMap, hourly: [], checklist: { it1: true, it2: true, it3: true, de1: true, de2: true, de3: false }, bench: {},
+    pnl: { foodSales: null, foodCOGS: null, totalSales: null, totalCOGS: null }, readout: ""
+  };
+  const a = analyze(ws);
+  const total = a.fc.sales / 0.62;
+  const share = { 11: .05, 12: .11, 13: .09, 14: .04, 15: .03, 16: .04, 17: .09, 18: .14, 19: .14, 20: .11, 21: .08, 22: .08 };
+  const staff = { 11: 3, 12: 5, 13: 5, 14: 4, 15: 4, 16: 4, 17: 5, 18: 7, 19: 7, 20: 6, 21: 5, 22: 4 };
+  ws.hourly = Object.keys(share).map(hr => { const s = Math.round(total * share[hr]), hrs = staff[hr] * 28; return { hour: +hr, sales: s, guests: Math.round(s / 31), hours: hrs, cost: Math.round(hrs * 16) }; });
+  ws.pnl = { foodSales: Math.round(a.fc.sales), foodCOGS: Math.round(a.fc.actualCOGS * 1.045), totalSales: Math.round(total), totalCOGS: Math.round(a.fc.actualCOGS * 1.045 + (total - a.fc.sales) * 0.24) };
+  return ws;
+}
+function blankClient(name) {
+  return { v: 1, name, setup: { pos: "Toast", purchasing: "MarginEdge", accounting: "QuickBooks Online", target: 30, periodDays: 28, threshold: 5, periodLabel: "", segment: "Full-service casual", splhTarget: 50, minStaff: 3 },
+    ingredients: [], recipes: [], sales: [], invoices: [], counts: {}, posMap: {}, vendorMap: {}, hourly: [], checklist: {}, bench: {},
+    pnl: { foodSales: null, foodCOGS: null, totalSales: null, totalCOGS: null }, readout: "" };
+}
+function upgrade(w) {
+  w.hourly ||= []; w.checklist ||= {}; w.bench ||= {}; w.pnl ||= {};
+  w.setup.segment ||= "Full-service casual"; w.setup.splhTarget ??= 50; w.setup.minStaff ??= 3;
+  return w;
+}
+
+/* ---------- analysis engine ---------- */
+function analyze(ws) {
+  const S = ws.setup, af = 365 / Math.max(1, num(S.periodDays) || 28), target = (num(S.target) || 30) / 100, thr = (num(S.threshold) || 5) / 100;
+  const ingById = Object.fromEntries(ws.ingredients.map(i => [i.id, i]));
+  // purchasing
+  const buy = {};
+  const sortedInv = [...ws.invoices].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  let unmappedInv = {};
+  for (const l of sortedInv) {
+    const ing = ws.vendorMap[l.desc];
+    const pu = num(l.packUnits) || 1, pc = num(l.packCost), q = num(l.qty) || 0;
+    if (!ing || !ingById[ing]) { const u = unmappedInv[l.desc] ||= { desc: l.desc, vendor: l.vendor, spend: 0 }; u.spend += q * (pc || 0); continue; }
+    const b = buy[ing] ||= { units: 0, spend: 0, first: null, latest: null, firstDate: null, latestDate: null, noPack: false };
+    b.units += q * pu; b.spend += q * (pc || 0);
+    if (!num(l.packUnits)) b.noPack = true;
+    if (pc != null) { const uc = pc / pu; if (b.first == null) { b.first = uc; b.firstDate = l.date; } b.latest = uc; b.latestDate = l.date; }
+  }
+  const cost = id => buy[id]?.latest ?? num(ingById[id]?.cost) ?? 0;
+  const recById = Object.fromEntries(ws.recipes.map(r => [r.id, r]));
+  const plateCost = r => r.lines.reduce((s, l) => s + (num(l.qty) || 0) * cost(l.ing), 0) / ((num(r.yieldPct) || 100) / 100);
+  // sales
+  const soldBy = {}; let sales = 0, mappedSales = 0; const unmappedPos = [];
+  const posAgg = {};
+  for (const s of ws.sales) { const a = posAgg[s.item] ||= { item: s.item, qty: 0, revenue: 0 }; a.qty += num(s.qty) || 0; a.revenue += num(s.revenue) || 0; }
+  for (const a of Object.values(posAgg)) {
+    sales += a.revenue;
+    const r = ws.posMap[a.item];
+    if (r === "__skip") continue;
+    if (!r || !recById[r]) { unmappedPos.push(a); continue; }
+    const t = soldBy[r] ||= { qty: 0, revenue: 0 }; t.qty += a.qty; t.revenue += a.revenue; mappedSales += a.revenue;
+  }
+  // theoretical usage per ingredient
+  const theo = {}, users = {};
+  for (const r of ws.recipes) {
+    const q = soldBy[r.id]?.qty || 0; if (!q) continue;
+    const y = (num(r.yieldPct) || 100) / 100;
+    for (const l of r.lines) { const u = q * (num(l.qty) || 0) / y; theo[l.ing] = (theo[l.ing] || 0) + u; (users[l.ing] ||= []).push({ name: r.name, units: u }); }
+  }
+  // consumption rows
+  const rows = ws.ingredients.map(i => {
+    const c = ws.counts[i.id] || {}, b = buy[i.id];
+    const begin = num(c.begin), end = num(c.end), waste = num(c.waste) || 0, transfer = num(c.transfer) || 0;
+    const purchased = b?.units || 0, t = theo[i.id] || 0, uc = cost(i.id);
+    const counted = begin != null && end != null;
+    const actual = counted ? begin + purchased - end - transfer : null;
+    const variance = counted ? actual - t - waste : null;
+    const vPct = counted && t > 0 ? variance / t : null;
+    const flag = vPct != null && Math.abs(vPct) > thr;
+    return { ing: i, begin, end, waste, transfer, purchased, theo: t, actual, variance, vPct, vDollar: variance == null ? null : variance * uc, wasteDollar: waste * uc, cost: uc, counted, flag,
+      users: (users[i.id] || []).sort((a, b) => b.units - a.units), buy: b };
+  });
+  // menu items
+  const items = ws.recipes.map(r => {
+    const pc = plateCost(r), price = num(r.price), s = soldBy[r.id] || { qty: 0, revenue: 0 };
+    return { r, plate: pc, price, qty: s.qty, revenue: s.revenue, cm: price != null ? price - pc : null, fc: price ? pc / price : null };
+  });
+  const menu = items.filter(x => x.qty > 0 && x.price && x.r.cat !== "Modifier");
+  const totQ = menu.reduce((s, x) => s + x.qty, 0);
+  const avgCM = totQ ? menu.reduce((s, x) => s + x.cm * x.qty, 0) / totQ : 0;
+  const popCut = menu.length ? 0.7 / menu.length : 0;
+  for (const x of menu) {
+    x.mix = x.qty / totQ;
+    const hp = x.mix >= popCut, hm = x.cm >= avgCM;
+    x.quad = hp && hm ? "Star" : hp ? "Plowhorse" : hm ? "Puzzle" : "Dog";
+  }
+  // food cost
+  const theoCOGS = items.reduce((s, x) => s + x.plate * x.qty, 0);
+  let actualCOGS = 0, uncountedSpend = 0;
+  for (const row of rows) { if (row.counted) actualCOGS += row.actual * row.cost; else if (row.buy) { actualCOGS += row.buy.spend; uncountedSpend += row.buy.spend; } }
+  const pS = num(ws.pnl?.foodSales), pC = num(ws.pnl?.foodCOGS);
+  const fc = { sales, mappedSales, theoCOGS, actualCOGS, theoPct: mappedSales ? theoCOGS / mappedSales : null, actualPct: mappedSales ? actualCOGS / mappedSales : null,
+    pnlPct: pS && pC != null ? pC / pS : null, target, uncountedSpend };
+
+  // opportunities
+  const opps = [];
+  const MIN = 150;
+  for (const row of rows) {
+    if (row.flag && row.variance > 0 && row.vDollar * af >= MIN) {
+      const top = row.users.slice(0, 2).map(u => u.name);
+      opps.push({ type: "Usage overage", title: `${row.ing.name}: ${fmt(row.variance, 1)} ${row.ing.unit} over theoretical`, value: row.vDollar * af, period: row.vDollar,
+        detail: `Actual use ran ${pct(row.vPct)} above recipe-based use after logged waste.` + (top.length ? ` Biggest users: ${top.join(" and ")}.` : ""),
+        action: "Spot-check portions on the line, re-weigh the spec, and recount before the next period." });
+    }
+  }
+  for (const row of rows) {
+    if (row.wasteDollar * af >= MIN * 2) {
+      opps.push({ type: "Waste", title: `${row.ing.name}: ${fmt(row.waste, 1)} ${row.ing.unit} logged as waste`, value: row.wasteDollar * af * 0.5, period: row.wasteDollar * 0.5,
+        detail: `${money(row.wasteDollar)} wasted this period. Value shown assumes waste is cut in half.`,
+        action: "Tighten par levels and order frequency; review prep batch sizes and FIFO." });
+    }
+  }
+  for (const x of items) {
+    if (x.fc != null && x.qty > 0 && x.fc > target + 0.03) {
+      const np = Math.ceil((x.plate / target) * 2) / 2;
+      const capped = Math.min(np, Math.ceil(x.price * 1.12 * 2) / 2);
+      const gain = (capped - x.price) * x.qty;
+      if (gain * af >= MIN) opps.push({ type: "Underpriced plate", title: `${x.r.name}: ${pct(x.fc)} plate cost vs ${pct(target, 0)} target`, value: gain * af, period: gain,
+        detail: `Plate costs ${money(x.plate, 2)} at the latest invoice prices on a ${money(x.price, 2)} menu price. A price of ${money(capped, 2)} brings it to ${pct(x.plate / capped)}` + (capped < np ? ` (capped at a 12% increase; the full fix is ${money(np, 2)}).` : "."),
+        action: "Reprice, or re-spec the plate (portion, garnish, side) to bring cost down. Value assumes volume holds." });
+    }
+  }
+  for (const row of rows) {
+    const b = row.buy;
+    if (b && b.first && b.latest && b.latest > b.first * 1.05) {
+      const imp = (b.latest - b.first) * b.units;
+      if (imp * af >= MIN) {
+        const aff = row.users.map(u => u.name).slice(0, 3);
+        opps.push({ type: "Vendor price increase", title: `${row.ing.name}: up ${pct(b.latest / b.first - 1)} since ${b.firstDate}`, value: imp * af, period: imp,
+          detail: `Unit cost moved from ${money(b.first, 2)} to ${money(b.latest, 2)} per ${row.ing.unit}.` + (aff.length ? ` Affects ${aff.join(", ")}.` : ""),
+          action: "Ask for a price lock or contract pricing, get a competing bid, or adjust the affected plates." });
+      }
+    }
+  }
+  // hourly productivity
+  const days = Math.max(1, num(S.periodDays) || 28), splhT = num(S.splhTarget) || 50, minStaff = num(S.minStaff) ?? 3;
+  const hourAgg = {};
+  for (const r of ws.hourly || []) { const k = num(r.hour); if (k == null) continue; const a = hourAgg[k] ||= { hour: k, sales: 0, guests: 0, hours: 0, cost: 0 }; a.sales += num(r.sales) || 0; a.guests += num(r.guests) || 0; a.hours += num(r.hours) || 0; a.cost += num(r.cost) || 0; }
+  const hours = Object.values(hourAgg).sort((a, b) => a.hour - b.hour);
+  const L = hours.reduce((t, x) => ({ sales: t.sales + x.sales, guests: t.guests + x.guests, hours: t.hours + x.hours, cost: t.cost + x.cost }), { sales: 0, guests: 0, hours: 0, cost: 0 });
+  const wage = L.hours ? L.cost / L.hours : 0;
+  for (const x of hours) {
+    x.splh = x.hours ? x.sales / x.hours : null;
+    x.need = Math.max(x.sales / splhT, minStaff * days);
+    x.excess = Math.max(0, x.hours - x.need);
+    x.low = x.splh != null && x.splh < splhT * 0.85 && x.excess > 0;
+  }
+  const totalSales = num(ws.pnl?.totalSales) || L.sales || sales;
+  const labor = { hours, total: L, wage, splh: L.hours ? L.sales / L.hours : null, laborPct: L.cost && totalSales ? L.cost / totalSales : null,
+    guestsPerHour: L.hours ? L.guests / L.hours : null, avgCheck: L.guests ? L.sales / L.guests : null, target: splhT, totalSales };
+  const cogsForPrime = num(ws.pnl?.totalCOGS) ?? (actualCOGS || null);
+  labor.primePct = L.cost && totalSales && cogsForPrime != null ? (cogsForPrime + L.cost) / totalSales : null;
+  // group consecutive low-productivity hours into one ticket each
+  let run = [];
+  const flush = () => {
+    if (!run.length) return;
+    const ex = run.reduce((s, x) => s + x.excess, 0), val = ex * wage, sl = run.reduce((s, x) => s + x.sales, 0) / run.reduce((s, x) => s + x.hours, 0);
+    if (val * af >= MIN) opps.push({ type: "Labor scheduling", title: `${hourLabel(run[0].hour)}–${hourLabel(run[run.length - 1].hour + 1)}: ${money(sl)} sales per labor hour vs ${money(splhT)} target`,
+      value: val * af, period: val, detail: `About ${fmt(ex / days, 1)} more labor hours a day than sales support in this window, keeping a floor of ${fmt(minStaff, 0)} on the clock.`,
+      action: "Stagger shift starts and send-home times; cross-train so one person covers two stations in this window." });
+    run = [];
+  };
+  for (const x of hours) { if (x.low) run.push(x); else flush(); }
+  flush();
+  opps.sort((a, b) => b.value - a.value);
+
+  const review = {
+    dogs: menu.filter(x => x.quad === "Dog"), puzzles: menu.filter(x => x.quad === "Puzzle"),
+    gaps: []
+  };
+  for (const u of unmappedPos.sort((a, b) => b.revenue - a.revenue)) review.gaps.push({ t: `POS item "${u.item}" has no recipe`, d: `${money(u.revenue)} in sales are left out of theoretical cost.` });
+  for (const u of Object.values(unmappedInv).sort((a, b) => b.spend - a.spend)) review.gaps.push({ t: `Invoice item "${u.desc}" is not mapped`, d: `${money(u.spend)} of purchases are not tied to an ingredient.` });
+  for (const row of rows) if (row.theo > 0 && !row.counted) review.gaps.push({ t: `${row.ing.name} has no count`, d: "Add beginning and ending counts to measure actual usage." });
+  for (const row of rows) if (row.buy?.noPack) review.gaps.push({ t: `${row.ing.name}: invoice lines missing units per pack`, d: "Purchases are counted as 1 unit per pack until this is set." });
+  for (const x of items) if (x.price == null) review.gaps.push({ t: `${x.r.name} has no menu price`, d: "Needed for plate cost % and margin." });
+  if (fc.pnlPct == null) review.gaps.push({ t: "No P&L numbers for this period", d: "Add food sales and food COGS in Client setup to compare with the P&L." });
+  if (!hours.length) review.gaps.push({ t: "No hourly sales & labor", d: "Import the POS labor-by-hour report to measure productivity." });
+
+  // benchmarks
+  const seg = BENCH_SEGMENTS[S.segment] || BENCH_SEGMENTS["Full-service casual"];
+  const wasteTot = rows.reduce((s, r) => s + r.wasteDollar, 0);
+  const val = {
+    foodPct: fc.actualPct != null ? fc.actualPct * 100 : null,
+    gapPts: fc.actualPct != null && fc.theoPct != null ? (fc.actualPct - fc.theoPct) * 100 : null,
+    laborPct: labor.laborPct != null ? labor.laborPct * 100 : null,
+    primePct: labor.primePct != null ? labor.primePct * 100 : null,
+    splh: labor.splh, wastePct: actualCOGS ? wasteTot / actualCOGS * 100 : null
+  };
+  const dollarBase = { foodPct: mappedSales, gapPts: mappedSales, laborPct: totalSales, primePct: totalSales, wastePct: actualCOGS };
+  const bench = BENCH_METRICS.map(m => {
+    const o = ws.bench?.[m.k] || {}, typ = num(o.typ) ?? seg[m.k][0], top = num(o.top) ?? seg[m.k][1], v = val[m.k];
+    let status = null, gap$ = null;
+    if (v != null) {
+      const better = (a, b) => m.dir < 0 ? a <= b : a >= b;
+      status = better(v, top) ? "top" : better(v, typ) ? "typical" : "behind";
+      if (!better(v, top)) gap$ = m.k === "splh" ? (L.hours - L.sales / top) * wage * af : (v - top) / 100 * (dollarBase[m.k] || 0) * af;
+    }
+    return { ...m, v, typ, top, status, gap$, custom: o.typ != null || o.top != null };
+  });
+
+  return { rows, items, menu, avgCM, popCut, fc, opps, review, af, unmappedPos, unmappedInv, posAgg, cost, plateCost, ingById, recById, target, thr, labor, bench };
+}
+const hourLabel = hr => { const x = ((hr % 24) + 24) % 24; return (x % 12 || 12) + (x < 12 ? "am" : "pm"); };
+
+/* ---------- state & persistence ---------- */
+const DEMO_ID = "demo";
+let demo = buildDemo();
+let clients = {};            // id -> workspace (from db)
+let currentId = DEMO_ID;
+let db = null, sample = null, downloads = null;
+let dbState = "connecting";  // connecting | ready | off
+let dirty = false, saving = false, pendingSave = false, saveTimer = null, saveError = false;
+let lastSavedJSON = {};
+// Standalone mode: opened as a plain file outside Claude, workspaces are kept in this browser only.
+const LOCAL_KEY = "margin-desk-clients";
+let localMode = false;
+function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(clients)); return true; } catch { return false; } }
+function loadLocal() { try { const d = JSON.parse(localStorage.getItem(LOCAL_KEY) || "{}"); for (const id in d) clients[id] = upgrade(d[id]); } catch {} }
+const ws = () => currentId === DEMO_ID ? demo : clients[currentId];
+
+function touch() {
+  if (currentId === DEMO_ID) { renderSaveState(); return; }
+  if (localMode) { clearTimeout(saveTimer); saveTimer = setTimeout(() => { saveError = !saveLocal(); renderSaveState(); }, 400); return; }
+  if (!db) { renderSaveState(); return; }
+  dirty = true; renderSaveState();
+  clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 800);
+}
+async function saveNow() {
+  clearTimeout(saveTimer);
+  if (!db || currentId === DEMO_ID || !dirty) return;
+  if (saving) { pendingSave = true; return; }
+  const id = currentId, data = clone(clients[id]);
+  saving = true; dirty = false; renderSaveState();
+  try { await db.doc("clients/" + id).set(data); lastSavedJSON[id] = JSON.stringify(data); saveError = false; }
+  catch (e) {
+    saveError = true; dirty = true;
+    toast(e?.code === "quota_exceeded" ? "This workspace is full. Remove old invoice or sales rows, then try again." : e?.code === "invalid_argument" ? "You can view this workspace but not change it." : "Couldn't save. Your changes are kept in this view; we'll retry on your next edit.");
+  }
+  saving = false; renderSaveState();
+  if (pendingSave) { pendingSave = false; dirty = true; saveNow(); }
+}
+function renderSaveState() {
+  const el = $("#saveState");
+  if (currentId === DEMO_ID) { el.className = "pill"; el.textContent = "Demo · edits not saved"; return; }
+  if (localMode) { el.className = saveError ? "pill crit" : "pill ok"; el.textContent = saveError ? "Not saved" : "Saved in this browser"; return; }
+  if (!db) { el.className = "pill warn"; el.textContent = "Not saving · this view only"; return; }
+  if (saveError) { el.className = "pill crit"; el.textContent = "Not saved"; return; }
+  if (saving || dirty) { el.className = "pill"; el.textContent = "Saving…"; return; }
+  el.className = "pill ok"; el.textContent = "Saved";
+}
+function renderClientSel() {
+  const sel = $("#clientSel");
+  const ids = Object.keys(clients).sort((a, b) => (clients[a].name || "").localeCompare(clients[b].name || ""));
+  sel.innerHTML = `<option value="${DEMO_ID}">${h(demo.name)}</option>` + ids.map(id => `<option value="${h(id)}">${h(clients[id].name || "Untitled client")}</option>`).join("");
+  sel.value = currentId;
+}
+async function switchClient(id) {
+  if (dirty) await saveNow();
+  currentId = id; subtab = "import"; importState = null; confirmDelete = false;
+  renderClientSel(); renderSaveState(); render();
+}
+async function newClient() {
+  const name = "New client " + (Object.keys(clients).length + 1);
+  const data = blankClient(name);
+  let id;
+  if (db) {
+    const ref = db.collection("clients").doc();
+    id = ref.id;
+    clients[id] = data;
+    try { await ref.set(clone(data)); lastSavedJSON[id] = JSON.stringify(data); }
+    catch (e) { delete clients[id]; toast(e?.code === "invalid_argument" ? "You can view this desk but can't add clients. Ask the owner for edit access." : "Couldn't create the client. Try again in a moment."); return; }
+  } else {
+    id = uid("local_"); clients[id] = data;
+    if (localMode) saveLocal(); else toast("Saving isn't available in this view, so this client lasts only until you close the page.");
+  }
+  if (dirty) await saveNow();
+  currentId = id; location.hash = "setup"; renderClientSel(); renderSaveState(); render();
+}
+
+/* ---------- routing ---------- */
+const TABS = [
+  ["checklist", "Period checklist"], ["setup", "Client setup"], ["data", "Data & mapping"], ["counts", "Count sheet"], "|",
+  ["opportunities", "Opportunities"], ["consumption", "Consumption"], ["menu", "Menu profitability"], ["food-cost", "Food cost"], ["productivity", "Labor productivity"], ["benchmarks", "Benchmarks"], "|",
+  ["readout", "Client readout"], ["connections", "API connections"]
+];
+const tabIds = TABS.filter(t => t !== "|").map(t => t[0]);
+let tab = "opportunities";
+function readHash() { const t = location.hash.slice(1); tab = tabIds.includes(t) ? t : "opportunities"; }
+function renderTabs() {
+  $("#tabs").innerHTML = TABS.map(t => t === "|" ? `<span class="sep" aria-hidden="true"></span>` : `<a href="#${t[0]}" ${t[0] === tab ? 'aria-current="page"' : ""}>${t[1]}</a>`).join("");
+}
+window.addEventListener("hashchange", () => { readHash(); render(); window.scrollTo(0, 0); });
+
+/* ---------- render ---------- */
+let pendingType = "sales", subtab = "import", importState = null, confirmDelete = false, readoutBusy = false, readoutAbort = null;
+function render() {
+  renderTabs();
+  const w = ws(), A = analyze(w);
+  const views = { checklist: vChecklist, setup: vSetup, data: vData, counts: vCounts, consumption: vConsumption, opportunities: vOpps, menu: vMenu, "food-cost": vFood, productivity: vLabor, benchmarks: vBench, readout: vReadout, connections: vConn };
+  const demoBar = currentId === DEMO_ID ? `<div class="demo-note"><span>You're looking at a demo tavern with sample numbers. Changes here aren't saved. Add a client to get a saved workspace.</span><button class="btn primary" type="button" data-act="new-client">New client</button></div>` : "";
+  $("#main").innerHTML = demoBar + views[tab](w, A);
+  afterRender?.(); afterRender = null;
+}
+let afterRender = null;
+const head = (title, sub, right = "") => `<div class="head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ""}</div>${right}</div>`;
+const periodTxt = w => w.setup.periodLabel ? h(w.setup.periodLabel) + " · " : "";
+
+/* --- setup --- */
+function vSetup(w) {
+  const S = w.setup;
+  const opt = (group, val) => Object.keys(SYSTEMS[group]).map(k => `<option ${k === val ? "selected" : ""}>${h(k)}</option>`).join("");
+  return head("Client setup", "Set the client's systems and the targets the analysis checks against.") + `
+  <section class="panel"><header><h3>Client</h3></header>
+    <div class="form">
+      <div class="field"><label for="s_name">Client name</label><input id="s_name" type="text" data-set="name" value="${h(w.name)}"></div>
+      <div class="field"><label for="s_period">Period label</label><input id="s_period" type="text" data-setup="periodLabel" value="${h(S.periodLabel)}" placeholder="Sep 29 – Oct 26, 2026"></div>
+      <div class="field"><label for="s_days">Period length (days)</label><input id="s_days" type="number" min="1" data-setup="periodDays" value="${h(S.periodDays)}"><small>Used to annualize opportunities.</small></div>
+    </div></section>
+  <section class="panel"><header><h3>Systems</h3><p>Decides which connector applies and what the import expects.</p></header>
+    <div class="form">
+      <div class="field"><label for="s_pos">POS</label><select id="s_pos" data-setup="pos">${opt("pos", S.pos)}</select></div>
+      <div class="field"><label for="s_pur">Purchasing / invoices</label><select id="s_pur" data-setup="purchasing">${opt("purchasing", S.purchasing)}</select></div>
+      <div class="field"><label for="s_acc">Accounting (P&amp;L)</label><select id="s_acc" data-setup="accounting">${opt("accounting", S.accounting)}</select></div>
+    </div></section>
+  <section class="panel"><header><h3>Targets and flags</h3></header>
+    <div class="form">
+      <div class="field"><label for="s_tgt">Target food cost %</label><input id="s_tgt" type="number" step="0.5" data-setup="target" value="${h(S.target)}"></div>
+      <div class="field"><label for="s_thr">Variance flag threshold %</label><input id="s_thr" type="number" step="0.5" data-setup="threshold" value="${h(S.threshold)}"><small>Ingredients whose unexplained usage is past this get flagged.</small></div>
+      <div class="field"><label for="s_splh">Target sales per labor hour $</label><input id="s_splh" type="number" step="1" data-setup="splhTarget" value="${h(S.splhTarget)}"><small>Hours below 85% of this get flagged.</small></div>
+      <div class="field"><label for="s_min">Minimum staff on the clock</label><input id="s_min" type="number" step="1" data-setup="minStaff" value="${h(S.minStaff)}"><small>Labor tickets never cut below this.</small></div>
+      <div class="field"><label for="s_seg">Benchmark segment</label><select id="s_seg" data-setup="segment">${Object.keys(BENCH_SEGMENTS).map(k => `<option ${k === S.segment ? "selected" : ""}>${h(k)}</option>`).join("")}</select></div>
+    </div></section>
+  <section class="panel"><header><h3>P&amp;L for this period</h3><p>From ${h(S.accounting)}. Same dates as the counts.</p></header>
+    <div class="form">
+      <div class="field"><label for="p_sales">Food sales $</label><input id="p_sales" type="number" data-pnl="foodSales" value="${h(w.pnl.foodSales ?? "")}"></div>
+      <div class="field"><label for="p_cogs">Food COGS $</label><input id="p_cogs" type="number" data-pnl="foodCOGS" value="${h(w.pnl.foodCOGS ?? "")}"></div>
+      <div class="field"><label for="p_tsales">Total sales $</label><input id="p_tsales" type="number" data-pnl="totalSales" value="${h(w.pnl.totalSales ?? "")}"><small>Food + beverage, for labor and prime cost.</small></div>
+      <div class="field"><label for="p_tcogs">Total COGS $</label><input id="p_tcogs" type="number" data-pnl="totalCOGS" value="${h(w.pnl.totalCOGS ?? "")}"></div>
+    </div></section>
+  ${currentId !== DEMO_ID ? `<section class="panel"><header><h3>Remove client</h3><p>Deletes this workspace for everyone who uses this desk.</p></header>
+    ${confirmDelete ? `<div class="confirm"><span>Delete ${h(w.name)} and all its data?</span><button class="btn danger" type="button" data-act="delete-yes">Delete</button><button class="btn" type="button" data-act="delete-no">Keep</button></div>` : `<div><button class="btn danger" type="button" data-act="delete-ask">Delete client</button></div>`}
+  </section>` : ""}`;
+}
+
+/* --- data & mapping --- */
+function vData(w, A) {
+  const unPos = A.unmappedPos.length, unInv = Object.keys(A.unmappedInv).length;
+  const st = [["import", "Import CSV", ""], ["pos", "Menu mapping", unPos], ["vendor", "Vendor mapping", unInv], ["recipes", "Recipes", w.recipes.length], ["ingredients", "Ingredients", w.ingredients.length]];
+  const sub = st.map(([k, l, c]) => `<button type="button" data-sub="${k}" aria-pressed="${subtab === k}">${l}${c !== "" ? `<span class="count">${k === "pos" || k === "vendor" ? (c ? c + " open" : "done") : c}</span>` : ""}</button>`).join("");
+  const body = { import: dImport, pos: dPos, vendor: dVendor, recipes: dRecipes, ingredients: dIngredients }[subtab](w, A);
+  return head("Data & mapping", `Bring in the client's exports, then tie POS names to recipes and invoice lines to ingredients. Mapping is done once per client; new names show up here as open items.`) + `<div class="subtabs">${sub}</div>` + body;
+}
+function dImport(w) {
+  const counts = `${w.sales.length} sales rows · ${w.invoices.length} invoice lines · ${Object.keys(w.counts).length} counted items · ${w.recipes.length} recipes`;
+  if (!importState) {
+    return `<section class="panel"><header><h3>Import a CSV export</h3><p>${counts}</p></header>
+      <div class="drop" id="drop">
+        <div class="field" style="width:min(100%,320px)"><label for="imp_type">What is in the file?</label>
+          <select id="imp_type">${Object.entries(DATASETS).map(([k, d]) => `<option value="${k}" ${k === pendingType ? "selected" : ""}>${d.label}</option>`).join("")}</select></div>
+        <input id="imp_file" type="file" accept=".csv,text/csv,text/plain" aria-label="Choose CSV file">
+        <small class="muted">Or drop a CSV here, or paste its text below.</small>
+        <textarea id="imp_paste" rows="4" placeholder="Paste CSV text, including the header row"></textarea>
+        <button class="btn" type="button" data-act="imp-paste">Read pasted text</button>
+      </div>
+      <p class="muted" style="font-size:13px">Expected columns: <b>POS item sales</b> item, qty, net sales · <b>Invoice lines</b> date, vendor, description, packs, units per pack, cost per pack · <b>Counts</b> ingredient, beginning, ending, waste, transfers · <b>Recipe lines</b> recipe, price, ingredient, qty · <b>Hourly sales &amp; labor</b> hour, net sales, guests, labor hours, labor $ · <b>Ingredients</b> name, unit, cost.</p>
+    </section>`;
+  }
+  const d = DATASETS[importState.type], hdr = importState.headers;
+  const sel = f => `<select id="map_${f.k}" data-map="${f.k}"><option value="">${f.req ? "Choose a column" : "Not in file"}</option>${hdr.map((x, i) => `<option value="${i}" ${importState.map[f.k] === i ? "selected" : ""}>${h(x)}</option>`).join("")}</select>`;
+  const prev = importState.rows.slice(0, 5);
+  const missing = d.fields.filter(f => f.req && importState.map[f.k] == null);
+  return `<section class="panel"><header><div><h3>${d.label}: ${h(importState.fileName)}</h3><p>${fmt(importState.rows.length)} rows. Check the column matches, then import. Importing replaces this client's existing ${d.label.toLowerCase()}${importState.type === "ingredients" || importState.type === "recipes" ? " with the same names" : ""}.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${sample ? `<button class="btn" type="button" data-act="imp-claude" ${importState.busy ? "disabled" : ""}>${importState.busy ? "Matching…" : "Match with Claude"}</button>` : ""}<button class="btn ghost" type="button" data-act="imp-cancel">Cancel</button></div></header>
+    <div class="maprow">${d.fields.map(f => `<div class="field"><label for="map_${f.k}">${f.label}${f.req ? " *" : ""}</label>${sel(f)}</div>`).join("")}</div>
+    <div class="tbl-wrap"><table><thead><tr>${d.fields.map(f => `<th>${f.label}</th>`).join("")}</tr></thead><tbody>
+      ${prev.map(r => `<tr>${d.fields.map(f => `<td>${h(importState.map[f.k] != null ? r[importState.map[f.k]] : "")}</td>`).join("")}</tr>`).join("")}
+    </tbody></table></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="button" data-act="imp-go" ${missing.length ? "disabled" : ""}>Import ${fmt(importState.rows.length)} rows</button>
+      ${missing.length ? `<span class="pill warn">Match ${missing.map(f => f.label).join(", ")}</span>` : ""}</div>
+  </section>`;
+}
+function recipeOptions(w, val) {
+  return `<option value="">Not mapped</option><option value="__skip" ${val === "__skip" ? "selected" : ""}>Not food (skip)</option>` + w.recipes.map(r => `<option value="${h(r.id)}" ${r.id === val ? "selected" : ""}>${h(r.name)}</option>`).join("");
+}
+function ingOptions(w, val, blank = "Not mapped") {
+  return `<option value="">${blank}</option>` + [...w.ingredients].sort((a, b) => a.name.localeCompare(b.name)).map(i => `<option value="${h(i.id)}" ${i.id === val ? "selected" : ""}>${h(i.name)} (${h(i.unit)})</option>`).join("");
+}
+function dPos(w, A) {
+  const list = Object.values(A.posAgg).sort((a, b) => b.revenue - a.revenue);
+  if (!list.length) return `<section class="panel"><div class="empty"><b>No POS sales yet</b><span>Import a POS item sales CSV and each menu name will show up here to map.</span><button class="btn" type="button" data-sub="import">Import CSV</button></div></section>`;
+  return `<section class="panel"><header><div><h3>POS items → recipes</h3><p>${A.unmappedPos.length ? `${A.unmappedPos.length} items still need a recipe.` : "Every POS item is mapped."} Map modifiers like "Add bacon" to their own small recipe.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="auto-pos">Match by name</button>${sample ? `<button class="btn" type="button" data-act="claude-pos">Suggest with Claude</button>` : ""}</div></header>
+    <div class="tbl-wrap"><table><thead><tr><th>POS name</th><th class="n">Qty</th><th class="n">Net sales</th><th>Recipe</th></tr></thead><tbody>
+    ${list.map(p => `<tr class="${!w.posMap[p.item] ? "flag" : ""}"><td>${h(p.item)}</td><td class="n">${fmt(p.qty)}</td><td class="n">${money(p.revenue)}</td>
+      <td><select data-posmap="${h(p.item)}" aria-label="Recipe for ${h(p.item)}">${recipeOptions(w, w.posMap[p.item])}</select></td></tr>`).join("")}
+    </tbody></table></div></section>`;
+}
+function dVendor(w, A) {
+  const agg = {};
+  for (const l of w.invoices) { const a = agg[l.desc] ||= { desc: l.desc, vendor: l.vendor, spend: 0, pu: l.packUnits }; a.spend += (num(l.qty) || 0) * (num(l.packCost) || 0); }
+  const list = Object.values(agg).sort((a, b) => b.spend - a.spend);
+  if (!list.length) return `<section class="panel"><div class="empty"><b>No invoices yet</b><span>Import invoice lines and each vendor description will show up here to map.</span><button class="btn" type="button" data-sub="import">Import CSV</button></div></section>`;
+  return `<section class="panel"><header><div><h3>Vendor items → ingredients</h3><p>Units per pack converts a case into the ingredient's count unit (a 10# case of beef = 10 lb).</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="auto-ven">Match by name</button>${sample ? `<button class="btn" type="button" data-act="claude-ven">Suggest with Claude</button>` : ""}</div></header>
+    <div class="tbl-wrap"><table><thead><tr><th>Invoice description</th><th>Vendor</th><th class="n">Spend</th><th class="n">Units / pack</th><th>Ingredient</th></tr></thead><tbody>
+    ${list.map(v => `<tr class="${!w.vendorMap[v.desc] ? "flag" : ""}"><td>${h(v.desc)}</td><td class="muted">${h(v.vendor)}</td><td class="n">${money(v.spend)}</td>
+      <td class="n"><input type="number" step="any" data-packunits="${h(v.desc)}" value="${h(v.pu ?? "")}" aria-label="Units per pack for ${h(v.desc)}"></td>
+      <td><select data-venmap="${h(v.desc)}" aria-label="Ingredient for ${h(v.desc)}">${ingOptions(w, w.vendorMap[v.desc])}</select></td></tr>`).join("")}
+    </tbody></table></div></section>`;
+}
+function dRecipes(w, A) {
+  return `<section class="panel"><header><div><h3>Recipes</h3><p>Quantities are in each ingredient's count unit, as served. Plate cost uses the latest invoice price.</p></div><button class="btn" type="button" data-act="add-recipe">Add recipe</button></header>
+    ${w.recipes.length ? w.recipes.map(r => {
+      const pc = A.plateCost(r), p = num(r.price);
+      return `<details class="recipe" ${r._open ? "open" : ""} data-rid="${h(r.id)}"><summary><b>${h(r.name)}</b><span class="muted">${h(r.cat || "")}</span><span class="num">${money(pc, 2)} cost</span><span class="num">${p ? pct(pc / p) : "no price"}</span></summary>
+      <div class="inner"><div class="form">
+        <div class="field"><label>Name</label><input type="text" data-rf="name" value="${h(r.name)}"></div>
+        <div class="field"><label>Menu price $</label><input type="number" step="0.25" data-rf="price" value="${h(r.price ?? "")}"></div>
+        <div class="field"><label>Category</label><input type="text" data-rf="cat" value="${h(r.cat || "")}" placeholder="Entrée, Side, Modifier…"></div>
+        <div class="field"><label>Yield %</label><input type="number" data-rf="yieldPct" value="${h(r.yieldPct ?? 100)}"></div>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th>Ingredient</th><th class="n">Qty</th><th>Unit</th><th class="n">Cost</th><th></th></tr></thead><tbody>
+        ${r.lines.map((l, i) => `<tr><td><select data-rl="${i}" data-rlf="ing" aria-label="Ingredient">${ingOptions(w, l.ing, "Choose")}</select></td>
+          <td class="n"><input type="number" step="any" data-rl="${i}" data-rlf="qty" value="${h(l.qty)}" aria-label="Quantity"></td>
+          <td class="muted">${h(A.ingById[l.ing]?.unit || "")}</td><td class="n">${money((num(l.qty) || 0) * A.cost(l.ing), 2)}</td>
+          <td><button class="btn ghost" type="button" data-act="del-line" data-i="${i}" aria-label="Remove line">Remove</button></td></tr>`).join("")}
+      </tbody></table></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="add-line">Add ingredient</button><button class="btn ghost danger" type="button" data-act="del-recipe">Delete recipe</button></div>
+      </div></details>`;
+    }).join("") : `<div class="empty"><b>No recipes yet</b><span>Import recipe lines or add the first recipe by hand.</span></div>`}
+  </section>`;
+}
+function dIngredients(w, A) {
+  return `<section class="panel"><header><div><h3>Ingredients</h3><p>The count unit is what you count, buy (after units per pack) and portion in. The fallback cost is used only when no invoice is mapped.</p></div><button class="btn" type="button" data-act="add-ing">Add ingredient</button></header>
+    <div class="tbl-wrap"><table><thead><tr><th>Ingredient</th><th>Unit</th><th>Category</th><th class="n">Fallback cost</th><th class="n">Latest invoice cost</th><th></th></tr></thead><tbody>
+    ${w.ingredients.map(i => `<tr data-iid="${h(i.id)}"><td><input type="text" data-if="name" value="${h(i.name)}" aria-label="Name"></td>
+      <td><input type="text" data-if="unit" value="${h(i.unit)}" style="min-width:60px;width:70px" aria-label="Unit"></td>
+      <td><input type="text" data-if="cat" value="${h(i.cat || "")}" style="min-width:100px" aria-label="Category"></td>
+      <td class="n"><input type="number" step="any" data-if="cost" value="${h(i.cost ?? "")}" aria-label="Fallback cost"></td>
+      <td class="n">${A.rows.find(r => r.ing.id === i.id)?.buy?.latest != null ? money(A.cost(i.id), 3) : "–"}</td>
+      <td><button class="btn ghost danger" type="button" data-act="del-ing">Remove</button></td></tr>`).join("") || `<tr><td colspan="6" class="muted">No ingredients yet.</td></tr>`}
+    </tbody></table></div></section>`;
+}
+
+/* --- count sheet --- */
+function vCounts(w, A) {
+  if (!w.ingredients.length) return head("Count sheet", "") + `<section class="panel"><div class="empty"><b>No ingredients to count yet</b><span>Add ingredients or import recipes first.</span><a class="btn" href="#data">Go to Data & mapping</a></div></section>`;
+  const rows = [...A.rows].sort((a, b) => (a.ing.cat || "").localeCompare(b.ing.cat || "") || a.ing.name.localeCompare(b.ing.name));
+  const cell = (r, f) => `<td class="n"><input type="number" step="any" inputmode="decimal" data-count="${h(r.ing.id)}" data-cf="${f}" value="${h(w.counts[r.ing.id]?.[f] ?? "")}" aria-label="${f} count for ${h(r.ing.name)}"></td>`;
+  return head("Count sheet", `${periodTxt(w)}Type counts in each ingredient's unit. Purchases come from mapped invoices. Actual use = beginning + purchases − ending − transfers out.`) + `
+  <div class="tbl-wrap"><table><thead><tr><th>Ingredient</th><th>Unit</th><th class="n">Beginning</th><th class="n">Purchases</th><th class="n">Ending</th><th class="n">Waste</th><th class="n">Transfers out</th><th class="n">Actual use</th></tr></thead><tbody>
+  ${rows.map(r => `<tr><td>${h(r.ing.name)}<div class="muted" style="font-size:11px">${h(r.ing.cat || "")}</div></td><td class="muted">${h(r.ing.unit)}</td>
+    ${cell(r, "begin")}<td class="n">${fmt(r.purchased, 1)}</td>${cell(r, "end")}${cell(r, "waste")}${cell(r, "transfer")}
+    <td class="n" data-actual="${h(r.ing.id)}">${r.actual == null ? "–" : fmt(r.actual, 1)}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+/* --- consumption --- */
+function vConsumption(w, A) {
+  const rows = A.rows.filter(r => r.theo > 0 || r.counted || r.purchased);
+  if (!rows.length) return head("Consumption", "") + emptyNeeds();
+  const flagged = rows.filter(r => r.flag);
+  const overD = rows.reduce((s, r) => s + (r.vDollar > 0 ? r.vDollar : 0), 0);
+  const netD = rows.reduce((s, r) => s + (r.vDollar || 0), 0);
+  const wasteD = rows.reduce((s, r) => s + r.wasteDollar, 0);
+  const maxP = Math.max(0.1, ...rows.map(r => Math.abs(r.vPct || 0)));
+  const sorted = [...rows].sort((a, b) => (b.vDollar ?? -1e9) - (a.vDollar ?? -1e9));
+  return head("Consumption", `${periodTxt(w)}Actual usage from counts and purchases against theoretical usage from units sold × recipe quantity. The variance is what's left after logged waste.`) + `
+  <div class="kpis">
+    <div class="kpi"><span class="lbl">Unexplained overage</span><span class="val">${money(overD)}</span><span class="sub">${money(overD * A.af)} a year at this rate</span></div>
+    <div class="kpi"><span class="lbl">Net variance</span><span class="val">${signedMoney(netD)}</span><span class="sub">Overages minus shortfalls</span></div>
+    <div class="kpi"><span class="lbl">Logged waste</span><span class="val">${money(wasteD)}</span><span class="sub">Explained, not in variance</span></div>
+    <div class="kpi"><span class="lbl">Flagged ingredients</span><span class="val">${flagged.length}</span><span class="sub">Past ±${fmt(A.thr * 100, 1)}% of theoretical</span></div>
+  </div>
+  <div class="legend"><span><i style="background:var(--over)"></i>Used more than recipes say</span><span><i style="background:var(--under)"></i>Used less (check counts or portions)</span></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Ingredient</th><th>Unit</th><th class="n">Theoretical</th><th class="n">Actual</th><th class="n">Waste</th><th class="n">Variance</th><th class="n">Var %</th><th>vs theoretical</th><th class="n">Var $</th><th class="n">Unit cost</th></tr></thead><tbody>
+  ${sorted.map(r => {
+    const bw = r.vPct == null ? 0 : Math.min(50, Math.abs(r.vPct) / maxP * 50);
+    return `<tr class="${r.flag ? "flag" : ""}"><td>${h(r.ing.name)} ${r.flag ? `<span class="pill crit">Flag</span>` : ""}</td><td class="muted">${h(r.ing.unit)}</td>
+    <td class="n">${fmt(r.theo, 1)}</td><td class="n">${r.actual == null ? `<span class="muted">no count</span>` : fmt(r.actual, 1)}</td><td class="n">${fmt(r.waste, 1)}</td>
+    <td class="n">${r.variance == null ? "–" : (r.variance > 0 ? "+" : "") + fmt(r.variance, 1)}</td><td class="n">${r.vPct == null ? "–" : (r.vPct > 0 ? "+" : "") + pct(r.vPct)}</td>
+    <td><div class="div-bar" data-tip="${h(r.ing.name)}\n${r.vPct == null ? "No count" : (r.vPct > 0 ? "+" : "") + pct(r.vPct) + " vs theoretical"}">${r.vPct ? `<i class="${r.vPct > 0 ? "over" : "under"}" style="width:${bw}%"></i>` : ""}</div></td>
+    <td class="n">${r.vDollar == null ? "–" : signedMoney(r.vDollar)}</td><td class="n muted">${money(r.cost, 2)}</td></tr>`;
+  }).join("")}
+  </tbody></table></div>`;
+}
+function emptyNeeds() {
+  return `<section class="panel"><div class="empty"><b>Nothing to analyze yet</b><span>Import POS sales, invoices and recipes, then enter counts. The analysis fills in as each piece arrives.</span><a class="btn primary" href="#data">Go to Data & mapping</a></div></section>`;
+}
+
+/* --- opportunities --- */
+function vOpps(w, A) {
+  const total = A.opps.reduce((s, o) => s + o.value, 0);
+  const fc = A.fc;
+  const fcState = p => p == null ? "" : p > fc.target + 0.01 ? "crit" : p > fc.target ? "warn" : "ok";
+  const kpis = `<div class="kpis">
+    <div class="kpi"><span class="lbl">Annual opportunity</span><span class="val">${money(total)}</span><span class="sub">${A.opps.length} ranked tickets below</span></div>
+    <div class="kpi"><span class="lbl">Actual food cost</span><span class="val">${pct(fc.actualPct)}</span><span class="sub"><span class="pill ${fcState(fc.actualPct)}">Target ${pct(fc.target, 0)}</span></span></div>
+    <div class="kpi"><span class="lbl">Theoretical food cost</span><span class="val">${pct(fc.theoPct)}</span><span class="sub">Gap ${fc.actualPct != null && fc.theoPct != null ? fmt((fc.actualPct - fc.theoPct) * 100, 1) + " pts" : "–"}</span></div>
+    <div class="kpi"><span class="lbl">Data gaps</span><span class="val">${A.review.gaps.length}</span><span class="sub">${A.review.gaps.length ? "Listed in the review list" : "Nothing missing"}</span></div>
+  </div>`;
+  const tagClass = { "Usage overage": "crit", "Waste": "warn", "Underpriced plate": "plain", "Vendor price increase": "warn", "Labor scheduling": "plain" };
+  const tickets = A.opps.length ? `<div class="tickets">${A.opps.map((o, i) => `<article class="ticket"><span class="rank">${i + 1}</span>
+    <div class="body"><div class="tags"><span class="pill ${tagClass[o.type]}">${o.type}</span></div><h3>${h(o.title)}</h3><p>${h(o.detail)}</p><p class="act"><b>Next step:</b> ${h(o.action)}</p></div>
+    <div class="amt"><b>${money(o.value)}</b><small>a year · ${money(o.period)} this period</small></div></article>`).join("")}</div>`
+    : `<section class="panel"><div class="empty"><b>No opportunities found yet</b><span>${w.sales.length ? "Usage, waste, pricing and vendor costs are within range, or counts are still missing." : "Add sales, invoices, recipes and counts to generate tickets."}</span></div></section>`;
+  const li = (arr, f) => arr.length ? `<ul>${arr.map(f).join("")}</ul>` : `<p class="muted" style="font-size:13px">None this period.</p>`;
+  const review = `<div class="review">
+    <section class="panel"><header><h3>Menu dogs</h3><p>Low sales and low margin</p></header>${li(A.review.dogs, x => `<li><b>${h(x.r.name)}</b><span>${fmt(x.qty)} sold · ${money(x.cm, 2)} margin vs ${money(A.avgCM, 2)} avg. Rework, reprice or cut.</span></li>`)}</section>
+    <section class="panel"><header><h3>Puzzles to promote</h3><p>High margin, low sales</p></header>${li(A.review.puzzles, x => `<li><b>${h(x.r.name)}</b><span>${money(x.cm, 2)} margin · ${pct(x.mix)} of mix. Feature it: menu placement, server suggestion, special.</span></li>`)}</section>
+    <section class="panel"><header><h3>Data gaps</h3><p>Fix these to tighten the numbers</p></header>${li(A.review.gaps.slice(0, 12), g => `<li><b>${h(g.t)}</b><span>${h(g.d)}</span></li>`)}${A.review.gaps.length > 12 ? `<p class="muted">${A.review.gaps.length - 12} more.</p>` : ""}</section>
+  </div>`;
+  return head("Opportunities", `${periodTxt(w)}Ranked by annualized dollars. Values extrapolate this period to a full year (${fmt(A.af, 1)}×).`, `<button class="btn" type="button" data-act="export">Export CSV</button>`) + kpis + tickets + `<h2 style="font-size:18px;margin-top:8px">Review list</h2>` + review;
+}
+
+/* --- menu --- */
+function vMenu(w, A) {
+  const items = A.items.filter(x => x.price);
+  if (!items.length) return head("Menu profitability", "") + emptyNeeds();
+  const m = A.menu;
+  let chart = "";
+  if (m.length >= 2) {
+    const W = 680, H = 340, L = 56, R = 20, T = 18, B = 44;
+    const xMax = Math.max(A.popCut * 1.6, ...m.map(x => x.mix)) * 1.1, yMax = Math.max(A.avgCM * 1.4, ...m.map(x => x.cm)) * 1.1, yMin = Math.min(0, ...m.map(x => x.cm));
+    const X = v => L + v / xMax * (W - L - R), Y = v => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
+    const xt = [], yt = [];
+    const xs = xMax > .3 ? .1 : xMax > .15 ? .05 : .02; for (let v = 0; v <= xMax + 1e-9; v += xs) xt.push(v);
+    const ys = yMax > 30 ? 10 : yMax > 12 ? 5 : 2; for (let v = Math.ceil(yMin / ys) * ys; v <= yMax; v += ys) yt.push(v);
+    chart = `<section class="panel"><header><div><h3>Menu engineering</h3><p>Popularity (share of items sold) against contribution margin. Lines mark 70% of an even share and the sales-weighted average margin.</p></div></header>
+    <div style="overflow-x:auto"><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Menu engineering scatter" style="min-width:520px">
+      ${yt.map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end">$${v}</text>`).join("")}
+      ${xt.map(v => `<text x="${X(v)}" y="${H - B + 18}" text-anchor="middle">${Math.round(v * 100)}%</text>`).join("")}
+      <line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
+      <line x1="${X(A.popCut)}" x2="${X(A.popCut)}" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="4 4"/>
+      <line x1="${L}" x2="${W - R}" y1="${Y(A.avgCM)}" y2="${Y(A.avgCM)}" stroke="var(--muted)" stroke-dasharray="4 4"/>
+      <text x="${W - R - 4}" y="${T + 12}" text-anchor="end" class="lbl-strong">Stars</text><text x="${L + 6}" y="${T + 12}" class="lbl-strong">Puzzles</text>
+      <text x="${W - R - 4}" y="${H - B - 8}" text-anchor="end" class="lbl-strong">Plowhorses</text><text x="${L + 6}" y="${H - B - 8}" class="lbl-strong">Dogs</text>
+      <text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">Share of items sold</text>
+      ${(() => { const boxes = []; return m.map(x => { const cx = X(x.mix), cy = Y(x.cm), lw = x.r.name.length * 6.6 + 10;
+        const cands = [[cx < W - 150 ? "start" : "end", cy + 4], [cx < W - 150 ? "start" : "end", cy - 10], [cx < W - 150 ? "start" : "end", cy + 18], [cx < W - 150 ? "end" : "start", cy + 4]];
+        let pick = cands[0];
+        for (const c of cands) { const x0 = c[0] === "start" ? cx + 9 : cx - 9 - lw, bx = [x0, c[1] - 11, x0 + lw, c[1] + 3];
+          if (!boxes.some(b => bx[0] < b[2] && bx[2] > b[0] && bx[1] < b[3] && bx[3] > b[1])) { pick = c; break; } }
+        { const x0 = pick[0] === "start" ? cx + 9 : cx - 9 - lw; boxes.push([x0, pick[1] - 11, x0 + lw, pick[1] + 3]); }
+        const right = pick[0] === "start", ty = pick[1]; return `<g data-tip="${h(x.r.name)} · ${x.quad}\n${fmt(x.qty)} sold (${pct(x.mix)})\nMargin ${money(x.cm, 2)} · plate ${pct(x.fc)}">
+        <circle cx="${cx}" cy="${cy}" r="14" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="5.5" fill="var(--series-1)" stroke="var(--surface)" stroke-width="2"/>
+        <text x="${right ? cx + 9 : cx - 9}" y="${ty}" text-anchor="${right ? "start" : "end"}" class="lbl-strong" style="font-weight:500">${h(x.r.name)}</text></g>`; }).join(""); })()}
+    </svg></div></section>`;
+  }
+  const rows = [...items].sort((a, b) => b.cm * b.qty - a.cm * a.qty);
+  return head("Menu profitability", `${periodTxt(w)}Plate costs use the latest invoice price for each ingredient. Modifiers are costed but left out of the quadrants.`) + chart + `
+  <div class="tbl-wrap"><table><thead><tr><th>Item</th><th>Quadrant</th><th class="n">Price</th><th class="n">Plate cost</th><th class="n">Plate %</th><th class="n">Margin</th><th class="n">Sold</th><th class="n">Total margin</th></tr></thead><tbody>
+  ${rows.map(x => `<tr class="${x.fc > A.target + 0.03 ? "flag" : ""}"><td>${h(x.r.name)}<div class="muted" style="font-size:11px">${h(x.r.cat || "")}</div></td>
+    <td>${x.quad ? `<span class="pill plain">${x.quad}</span>` : `<span class="muted">${x.r.cat === "Modifier" ? "Modifier" : "Not sold"}</span>`}</td>
+    <td class="n">${money(x.price, 2)}</td><td class="n">${money(x.plate, 2)}</td>
+    <td class="n">${x.fc > A.target + 0.03 ? `<span class="pill crit">${pct(x.fc)}</span>` : pct(x.fc)}</td><td class="n">${money(x.cm, 2)}</td><td class="n">${fmt(x.qty)}</td><td class="n">${money(x.cm * x.qty)}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+/* --- food cost --- */
+function vFood(w, A) {
+  const fc = A.fc;
+  const bars = [["Theoretical", fc.theoPct, "Recipes × units sold, at latest invoice prices"], ["Actual", fc.actualPct, "Counts + purchases, from the count sheet"], ["P&L", fc.pnlPct, `From ${w.setup.accounting}`]];
+  const W = 640, rowH = 54, L = 110, R = 70, T = 10, H = T + rowH * 3 + 30;
+  const max = Math.max(fc.target * 1.4, ...bars.map(b => b[1] || 0)) * 1.08;
+  const X = v => L + v / max * (W - L - R);
+  const ticks = []; for (let v = 0; v <= max; v += 0.05) ticks.push(v);
+  const svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Food cost comparison" style="min-width:440px">
+    ${ticks.map(v => `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${T + rowH * 3}"/><text x="${X(v)}" y="${T + rowH * 3 + 16}" text-anchor="middle">${Math.round(v * 100)}%</text>`).join("")}
+    ${bars.map(([n, v, d], i) => { const y = T + i * rowH + 14; return `<g data-tip="${n}: ${pct(v)}\n${h(d)}"><text x="${L - 10}" y="${y + 15}" text-anchor="end" class="lbl-strong">${n}</text>
+      ${v == null ? `<text x="${L + 6}" y="${y + 15}">No data</text>` : `<rect x="${L}" y="${y}" width="${Math.max(2, X(v) - L)}" height="22" rx="4" fill="var(--series-1)"/><text x="${X(v) + 8}" y="${y + 15}" class="lbl-strong">${pct(v)}</text>`}</g>`; }).join("")}
+    <line x1="${X(fc.target)}" x2="${X(fc.target)}" y1="${T - 4}" y2="${T + rowH * 3}" stroke="var(--ink)" stroke-width="2"/>
+    <text x="${X(fc.target)}" y="${H - 1}" text-anchor="middle" class="lbl-strong">Target ${pct(fc.target, 0)}</text>
+  </svg>`;
+  const st = v => v == null ? `<span class="pill">No data</span>` : v > fc.target + 0.01 ? `<span class="pill crit">Over target</span>` : v > fc.target ? `<span class="pill warn">Near target</span>` : `<span class="pill ok">On target</span>`;
+  const gapTA = fc.actualPct != null && fc.theoPct != null ? fc.actualPct - fc.theoPct : null;
+  const gapAP = fc.actualPct != null && fc.pnlPct != null ? fc.pnlPct - fc.actualPct : null;
+  return head("Food cost", `${periodTxt(w)}Three views of the same period. Theoretical is what the recipes say it should cost, actual is what the counts say it did, and the P&L is what the books say.`) + `
+  <section class="panel"><div style="overflow-x:auto">${svg}</div></section>
+  <div class="tbl-wrap"><table><thead><tr><th>View</th><th class="n">Food cost %</th><th class="n">vs target</th><th>Status</th><th class="n">COGS</th><th class="n">Sales base</th></tr></thead><tbody>
+    <tr><td>Theoretical</td><td class="n">${pct(fc.theoPct)}</td><td class="n">${fc.theoPct == null ? "–" : fmt((fc.theoPct - fc.target) * 100, 1) + " pts"}</td><td>${st(fc.theoPct)}</td><td class="n">${money(fc.theoCOGS)}</td><td class="n">${money(fc.mappedSales)}</td></tr>
+    <tr><td>Actual</td><td class="n">${pct(fc.actualPct)}</td><td class="n">${fc.actualPct == null ? "–" : fmt((fc.actualPct - fc.target) * 100, 1) + " pts"}</td><td>${st(fc.actualPct)}</td><td class="n">${money(fc.actualCOGS)}</td><td class="n">${money(fc.mappedSales)}</td></tr>
+    <tr><td>P&amp;L</td><td class="n">${pct(fc.pnlPct)}</td><td class="n">${fc.pnlPct == null ? "–" : fmt((fc.pnlPct - fc.target) * 100, 1) + " pts"}</td><td>${st(fc.pnlPct)}</td><td class="n">${money(num(w.pnl.foodCOGS))}</td><td class="n">${money(num(w.pnl.foodSales))}</td></tr>
+  </tbody></table></div>
+  <div class="grid2">
+    <section class="panel"><h3>Theoretical → actual: ${gapTA == null ? "–" : fmt(gapTA * 100, 1) + " pts"}</h3><p class="muted">Usage the recipes don't explain: over-portioning, waste that wasn't logged, theft, or count errors. The Consumption view breaks it down by ingredient.</p></section>
+    <section class="panel"><h3>Actual → P&amp;L: ${gapAP == null ? "–" : fmt(gapAP * 100, 1) + " pts"}</h3><p class="muted">Usually timing or coding: invoices booked to the wrong period or category, transfers not recorded, or non-food items in food COGS. Sales here use mapped menu items only${fc.sales > fc.mappedSales ? ` (${money(fc.sales - fc.mappedSales)} of POS sales are unmapped)` : ""}.</p></section>
+  </div>`;
+}
+
+/* --- labor productivity --- */
+function vLabor(w, A) {
+  const Lb = A.labor;
+  if (!Lb.hours.length) return head("Labor productivity", "") + `<section class="panel"><div class="empty"><b>No hourly sales and labor yet</b><span>Import the POS labor-by-hour report (hour, net sales, guests, labor hours, labor $). Toast, Square and most POS systems export it.</span><button class="btn primary" type="button" data-act="goto-import" data-type="hourly">Import hourly data</button></div></section>`;
+  const W = 680, H = 280, Lm = 50, R = 16, T = 22, B = 36;
+  const max = Math.max(Lb.target * 1.3, ...Lb.hours.map(x => x.splh || 0)) * 1.08;
+  const n = Lb.hours.length, bw = (W - Lm - R) / n;
+  const Y = v => T + (1 - v / max) * (H - T - B);
+  const step = max > 120 ? 25 : max > 60 ? 20 : 10; const ticks = []; for (let v = 0; v <= max; v += step) ticks.push(v);
+  const svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Sales per labor hour by hour of day" style="min-width:480px">
+    ${ticks.map(v => `<line class="grid" x1="${Lm}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${Lm - 8}" y="${Y(v) + 4}" text-anchor="end">$${v}</text>`).join("")}
+    ${Lb.hours.map((x, i) => { const mw = Math.min(28, bw * 0.55), bx = Lm + i * bw + (bw - mw) / 2, bh = Y(0) - Y(x.splh || 0);
+      return `<g data-tip="${hourLabel(x.hour)}: ${money(x.splh)} per labor hour\n${money(x.sales)} sales · ${fmt(x.hours)} labor hrs\n${x.excess > 0 ? fmt(x.excess) + " hrs above what sales support" : "Staffed to sales"}">
+        <rect x="${Lm + i * bw}" y="${T}" width="${bw}" height="${H - T - B}" fill="transparent"/>
+        <rect x="${bx}" y="${Y(x.splh || 0)}" width="${mw}" height="${Math.max(1, bh)}" rx="4" fill="${x.low ? "var(--over)" : "var(--series-1)"}"/>
+        <text x="${Lm + i * bw + bw / 2}" y="${H - B + 16}" text-anchor="middle">${hourLabel(x.hour)}</text></g>`; }).join("")}
+    <line class="axis" x1="${Lm}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}"/>
+    <line x1="${Lm}" x2="${W - R}" y1="${Y(Lb.target)}" y2="${Y(Lb.target)}" stroke="var(--ink)" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="${Lm + 4}" y="${T + 2}" class="lbl-strong">Target ${money(Lb.target)} (dashed)</text>
+  </svg>`;
+  const laborOpp = A.opps.filter(o => o.type === "Labor scheduling").reduce((s, o) => s + o.value, 0);
+  return head("Labor productivity", `${periodTxt(w)}Sales and labor by hour of day across the period. Hours below 85% of the target sales per labor hour, with staff above the minimum, become labor tickets.`) + `
+  <div class="kpis">
+    <div class="kpi"><span class="lbl">Sales per labor hour</span><span class="val">${money(Lb.splh)}</span><span class="sub">Target ${money(Lb.target)}</span></div>
+    <div class="kpi"><span class="lbl">Labor cost %</span><span class="val">${pct(Lb.laborPct)}</span><span class="sub">${money(Lb.total.cost)} on ${money(Lb.totalSales)} sales</span></div>
+    <div class="kpi"><span class="lbl">Prime cost %</span><span class="val">${pct(Lb.primePct)}</span><span class="sub">COGS + hourly labor</span></div>
+    <div class="kpi"><span class="lbl">Scheduling opportunity</span><span class="val">${money(laborOpp)}</span><span class="sub">a year, at ${money(Lb.wage, 2)}/hr blended</span></div>
+  </div>
+  <section class="panel"><header><h3>Sales per labor hour, by hour</h3><div class="legend"><span><i style="background:var(--series-1)"></i>At or near target</span><span><i style="background:var(--over)"></i>Overstaffed for sales</span></div></header><div style="overflow-x:auto">${svg}</div></section>
+  <div class="tbl-wrap"><table><thead><tr><th>Hour</th><th class="n">Sales</th><th class="n">Guests</th><th class="n">Labor hrs</th><th class="n">Labor $</th><th class="n">Sales / labor hr</th><th class="n">Guests / labor hr</th><th class="n">Hrs sales support</th><th class="n">Excess hrs / day</th></tr></thead><tbody>
+  ${Lb.hours.map(x => `<tr class="${x.low ? "flag" : ""}"><td>${hourLabel(x.hour)}</td><td class="n">${money(x.sales)}</td><td class="n">${fmt(x.guests)}</td><td class="n">${fmt(x.hours)}</td><td class="n">${money(x.cost)}</td>
+    <td class="n">${x.low ? `<span class="pill crit">${money(x.splh)}</span>` : money(x.splh)}</td><td class="n">${x.hours ? fmt(x.guests / x.hours, 1) : "–"}</td><td class="n">${fmt(x.need)}</td><td class="n">${x.excess / (num(w.setup.periodDays) || 28) >= 0.05 ? fmt(x.excess / (num(w.setup.periodDays) || 28), 1) : "–"}</td></tr>`).join("")}
+  </tbody><tfoot><tr><td>Total</td><td class="n">${money(Lb.total.sales)}</td><td class="n">${fmt(Lb.total.guests)}</td><td class="n">${fmt(Lb.total.hours)}</td><td class="n">${money(Lb.total.cost)}</td><td class="n">${money(Lb.splh)}</td><td class="n">${Lb.guestsPerHour == null ? "–" : fmt(Lb.guestsPerHour, 1)}</td><td></td><td></td></tr></tfoot></table></div>`;
+}
+
+/* --- benchmarks --- */
+function vBench(w, A) {
+  const B = A.bench, seg = w.setup.segment;
+  const fmtV = (m, v) => v == null ? "–" : m.unit === "$" ? money(v) : m.unit === "pts" ? fmt(v, 1) + " pts" : fmt(v, 1) + "%";
+  const scored = B.filter(m => m.v != null), top = scored.filter(m => m.status === "top").length;
+  const biggest = B.filter(m => m.gap$ > 0).sort((a, b) => b.gap$ - a.gap$)[0];
+  const bullet = m => {
+    if (m.v == null) return `<span class="muted">No data</span>`;
+    const vals = [m.v, m.typ, m.top], lo = Math.min(...vals) * 0.85, hi = Math.max(...vals) * 1.1, X = v => (v - lo) / (hi - lo) * 100;
+    return `<div data-tip="${h(m.label)}\nThis client: ${fmtV(m, m.v)}\nTypical: ${fmtV(m, m.typ)}\nTop 20%: ${fmtV(m, m.top)}" style="position:relative;height:22px;min-width:180px">
+      <div style="position:absolute;left:0;right:0;top:10px;height:2px;background:var(--mid)"></div>
+      <div style="position:absolute;left:${X(m.typ)}%;top:4px;width:2px;height:14px;background:var(--muted)" title="Typical"></div>
+      <div style="position:absolute;left:${X(m.top)}%;top:2px;width:3px;height:18px;background:var(--good)" title="Top 20%"></div>
+      <div style="position:absolute;left:calc(${X(m.v)}% - 6px);top:5px;width:12px;height:12px;border-radius:50%;background:var(--series-1);border:2px solid var(--surface)"></div></div>`;
+  };
+  const st = m => m.status === "top" ? `<span class="pill ok">Top 20%</span>` : m.status === "typical" ? `<span class="pill warn">Typical</span>` : m.status === "behind" ? `<span class="pill crit">Behind typical</span>` : `<span class="pill">No data</span>`;
+  return head("Benchmarks", `How ${h(w.name)} compares with a typical ${h(seg.toLowerCase())} operator and the top 20%. Change the segment in Client setup.`) + `
+  <div class="kpis">
+    <div class="kpi"><span class="lbl">At top-20% level</span><span class="val">${top} of ${scored.length}</span><span class="sub">Measured metrics</span></div>
+    <div class="kpi"><span class="lbl">Largest gap to top 20%</span><span class="val">${biggest ? money(biggest.gap$) : "–"}</span><span class="sub">${biggest ? h(biggest.label) + ", a year. Gaps overlap (labor, prime cost and sales per labor hour measure the same dollars), so don't add them up." : "At or above the top 20% everywhere measured"}</span></div>
+  </div>
+  <div class="legend"><span><i style="background:var(--series-1);border-radius:50%"></i>This client</span><span><i style="background:var(--muted);width:3px"></i>Typical operator</span><span><i style="background:var(--good);width:3px"></i>Top 20%</span></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Metric</th><th class="n">This client</th><th>Position</th><th class="n">Typical</th><th class="n">Top 20%</th><th>Status</th><th class="n">Gap to top 20% / yr</th></tr></thead><tbody>
+  ${B.map(m => `<tr data-bk="${m.k}"><td><b>${m.label}</b><div class="muted" style="font-size:11px">${m.note}${m.dir < 0 ? " · lower is better" : " · higher is better"}</div></td>
+    <td class="n">${fmtV(m, m.v)}</td><td>${bullet(m)}</td>
+    <td class="n"><input type="number" step="any" data-bf="typ" value="${h(m.typ)}" aria-label="Typical ${h(m.label)}"></td>
+    <td class="n"><input type="number" step="any" data-bf="top" value="${h(m.top)}" aria-label="Top 20% ${h(m.label)}"></td>
+    <td>${st(m)}</td><td class="n">${m.gap$ > 0 ? money(m.gap$) : "–"}</td></tr>`).join("")}
+  </tbody></table></div>
+  <section class="panel"><header><h3>About these benchmarks</h3>${Object.keys(w.bench || {}).length ? `<button class="btn" type="button" data-act="bench-reset">Reset to segment defaults</button>` : ""}</header>
+    <p style="max-width:74ch">The typical and top-20% values are starting points for each segment, not a published survey. Replace them with figures from the benchmark source you license or trust, such as your POS provider's industry reports, an accounting firm's restaurant survey, or a benchmarking service. Edits apply to this client only. The gap in dollars applies each metric's distance from the top 20% to this client's own sales or COGS, annualized.</p></section>`;
+}
+
+/* --- period checklist --- */
+function vChecklist(w, A) {
+  const c = w.checklist || {}, all = CHECKLIST.flatMap(g => g.steps), done = all.filter(s => c[s[0]]).length;
+  return head("Period checklist", `${periodTxt(w)}The same steps every period, split by who does them. Tick each one as it's finished.`,
+    `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="pill ${done === all.length ? "ok" : "plain"}">${done} of ${all.length} done</span>${rollConfirm ? "" : `<button class="btn" type="button" data-act="roll-ask">Start next period</button>`}</div>`) + `
+  ${rollConfirm ? `<div class="confirm"><span>Start the next period? Ending counts become beginning counts. Sales, invoices, hourly data, waste, transfers, the P&amp;L, the readout and this checklist are cleared. Recipes, ingredients, mappings and setup stay.</span><button class="btn primary" type="button" data-act="roll-yes">Start next period</button><button class="btn" type="button" data-act="roll-no">Cancel</button></div>` : ""}
+  <div class="review">${CHECKLIST.map(g => `<section class="panel"><header><h3>${g.role}</h3><span class="pill plain">${g.steps.filter(s => c[s[0]]).length}/${g.steps.length}</span></header>
+    <ul>${g.steps.map(([id, t, d]) => `<li style="grid-template-columns:22px 1fr;column-gap:8px"><input type="checkbox" id="ck_${id}" data-check="${id}" ${c[id] ? "checked" : ""} style="margin-top:3px">
+      <label for="ck_${id}" style="display:grid;gap:2px;cursor:pointer"><b style="${c[id] ? "text-decoration:line-through;color:var(--muted)" : ""}">${t}</b><span>${d}</span></label></li>`).join("")}</ul></section>`).join("")}</div>
+  <section class="panel"><header><h3>Where things stand</h3></header>
+    <div class="kpis">
+      <div class="kpi"><span class="lbl">Open menu mappings</span><span class="val">${A.unmappedPos.length}</span></div>
+      <div class="kpi"><span class="lbl">Open vendor mappings</span><span class="val">${Object.keys(A.unmappedInv).length}</span></div>
+      <div class="kpi"><span class="lbl">Ingredients without counts</span><span class="val">${A.rows.filter(r => r.theo > 0 && !r.counted).length}</span></div>
+      <div class="kpi"><span class="lbl">Data gaps</span><span class="val">${A.review.gaps.length}</span></div>
+    </div></section>`;
+}
+let rollConfirm = false;
+function rollPeriod() {
+  const w = ws();
+  for (const id of Object.keys(w.counts)) { const c = w.counts[id]; w.counts[id] = { begin: c.end ?? null, end: null, waste: null, transfer: null }; }
+  w.sales = []; w.invoices = []; w.hourly = []; w.checklist = {}; w.readout = "";
+  w.pnl = { foodSales: null, foodCOGS: null, totalSales: null, totalCOGS: null }; w.setup.periodLabel = "";
+  rollConfirm = false; touch(); render(); toast("New period started. Ending counts carried forward as beginning counts.");
+}
+
+/* --- readout --- */
+function vReadout(w, A) {
+  return head("Client readout", "A written summary for the client, drafted from this period's numbers. Edit it before you send it.",
+    `<div style="display:flex;gap:8px;flex-wrap:wrap">${sample ? `<button class="btn primary" type="button" data-act="draft" ${readoutBusy ? "disabled" : ""}>${readoutBusy ? "Drafting…" : w.readout ? "Redraft with Claude" : "Draft with Claude"}</button>` : ""}
+    ${readoutBusy ? `<button class="btn" type="button" data-act="draft-stop">Stop</button>` : ""}<button class="btn" type="button" data-act="copy-readout">Copy text</button><button class="btn" type="button" data-act="export">Export opportunities CSV</button></div>`) + `
+  ${!sample ? `<div class="demo-note"><span>Drafting with Claude isn't available in this view. You can still write the readout here.</span></div>` : ""}
+  <section class="panel"><textarea id="readout" class="readout-text" aria-label="Client readout text" placeholder="Press Draft with Claude, or write the summary yourself.">${h(w.readout)}</textarea>
+  <p class="muted" style="font-size:12px">Based on ${A.opps.length} opportunities worth ${money(A.opps.reduce((s, o) => s + o.value, 0))} a year, food cost ${pct(A.fc.actualPct)} actual vs ${pct(A.fc.target, 0)} target.</p></section>`;
+}
+
+/* --- connections --- */
+function vConn(w) {
+  const S = w.setup;
+  const card = (group, label, name) => {
+    const s = SYSTEMS[group][name] || {};
+    return `<section class="panel"><h3><span>${label}: ${h(name)}</span><span class="pill warn">CSV import now</span></h3>
+      <dl><div><dt>What it provides</dt><dd>${h(s.gives)}</dd></div><div><dt>API access</dt><dd>${h(s.access)}</dd></div>
+      <div><dt>Live sync</dt><dd>${/export only|manual/i.test(name) ? "No API. Import a CSV each period." : `Needs a server connector that pulls on a schedule and writes into this client's workspace.${s.first ? " One of the two easiest to wire first." : ""}`}</dd></div></dl></section>`;
+  };
+  return head("API connections", "What each of this client's systems provides and how it connects. Change the systems in Client setup.") + `
+  <div class="conn">${card("pos", "POS", S.pos)}${card("purchasing", "Purchasing", S.purchasing)}${card("accounting", "P&L", S.accounting)}
+    <section class="panel"><h3><span>Recipes &amp; counts</span><span class="pill ok">In Margin Desk</span></h3>
+      <dl><div><dt>What it provides</dt><dd>Recipe quantities and yields, modifier recipes, period counts, waste and transfers.</dd></div>
+      <div><dt>Source</dt><dd>Kept here: the Recipes list, the Count sheet, or a CSV from the client's recipe tool.</dd></div></dl></section>
+  </div>
+  <section class="panel"><header><h3>Why this page doesn't call the APIs directly</h3></header>
+    <p style="max-width:72ch">Hosted pages block outside network calls, and client API keys shouldn't sit in a browser page anyway. Until the connector service is in place, clients' exports come in through Data &amp; mapping. The connector service would hold each client's keys on a server, pull orders, invoices and the P&amp;L on a schedule, and write the rows into the same workspace this page reads. Toast's standard access is self-service for operators and MarginEdge issues API keys from its developer portal, so those two are the easiest to wire first. Confirm each vendor's current access terms before building.</p>
+  </section>`;
+}
+
+/* ---------- import logic ---------- */
+function parseCSV(text) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== ""));
+}
+function autoMap(type, headers) {
+  const map = {}, used = new Set(), H = headers.map(norm);
+  for (const f of DATASETS[type].fields) {
+    let best = null;
+    for (const s of f.syn) { const i = H.findIndex((x, j) => !used.has(j) && x === s); if (i >= 0) { best = i; break; } }
+    if (best == null) for (const s of f.syn) { const i = H.findIndex((x, j) => !used.has(j) && (x.includes(s) || (s.length > 3 && s.includes(x) && x.length > 2))); if (i >= 0) { best = i; break; } }
+    if (best != null) { map[f.k] = best; used.add(best); }
+  }
+  return map;
+}
+function startImport(text, fileName) {
+  const type = $("#imp_type")?.value || "sales";
+  const rows = parseCSV(text);
+  if (rows.length < 2) { toast("That file needs a header row and at least one data row."); return; }
+  const headers = rows[0].map(x => x.trim());
+  importState = { type, fileName, headers, rows: rows.slice(1), map: autoMap(type, headers) };
+  render();
+}
+function ingByName(w, name, unit) {
+  const n = norm(name); if (!n) return null;
+  let i = w.ingredients.find(x => norm(x.name) === n);
+  if (!i) { i = { id: uid("i_"), name: String(name).trim(), unit: unit || "ea", cat: "", cost: null }; w.ingredients.push(i); }
+  return i;
+}
+function doImport() {
+  const w = ws(), st = importState, m = st.map, g = (r, k) => m[k] != null ? r[m[k]] : undefined;
+  let n = 0;
+  if (st.type === "sales") {
+    w.sales = st.rows.map(r => ({ item: String(g(r, "item") ?? "").trim(), qty: num(g(r, "qty")) || 0, revenue: num(g(r, "revenue")) || 0 })).filter(r => r.item);
+    n = w.sales.length;
+  } else if (st.type === "invoices") {
+    w.invoices = st.rows.map(r => ({ date: String(g(r, "date") ?? "").trim(), vendor: String(g(r, "vendor") ?? "").trim(), desc: String(g(r, "desc") ?? "").trim(), qty: num(g(r, "qty")) || 0, packUnits: num(g(r, "packUnits")), packCost: num(g(r, "packCost")) })).filter(r => r.desc);
+    w.invoices.forEach(l => { l.date = normDate(l.date); });
+    n = w.invoices.length;
+  } else if (st.type === "counts") {
+    for (const r of st.rows) { const i = ingByName(w, g(r, "ingredient")); if (!i) continue; w.counts[i.id] = { begin: num(g(r, "begin")), end: num(g(r, "end")), waste: num(g(r, "waste")), transfer: num(g(r, "transfer")) }; n++; }
+  } else if (st.type === "recipes") {
+    const byName = {};
+    for (const r of st.rows) {
+      const rn = String(g(r, "recipe") ?? "").trim(); if (!rn) continue;
+      const rec = byName[norm(rn)] ||= (() => { let x = w.recipes.find(y => norm(y.name) === norm(rn)); if (x) x.lines = []; else { x = { id: uid("r_"), name: rn, price: null, cat: "", yieldPct: 100, lines: [] }; w.recipes.push(x); } return x; })();
+      const p = num(g(r, "price")); if (p != null) rec.price = p;
+      const i = ingByName(w, g(r, "ingredient"), String(g(r, "unit") ?? "").trim() || undefined); if (!i) continue;
+      rec.lines.push({ ing: i.id, qty: num(g(r, "qty")) || 0 }); n++;
+    }
+  } else if (st.type === "hourly") {
+    w.hourly = st.rows.map(r => { let hr = String(g(r, "hour") ?? "").trim(); const pm = /p/i.test(hr), am = /a/i.test(hr); let x = parseInt(hr, 10); if (pm && x < 12) x += 12; if (am && x === 12) x = 0;
+      return { hour: Number.isFinite(x) ? x : null, sales: num(g(r, "sales")) || 0, guests: num(g(r, "guests")) || 0, hours: num(g(r, "hours")) || 0, cost: num(g(r, "cost")) || 0 }; }).filter(r => r.hour != null);
+    n = w.hourly.length;
+  } else if (st.type === "ingredients") {
+    for (const r of st.rows) { const i = ingByName(w, g(r, "name"), String(g(r, "unit") ?? "").trim() || undefined); if (!i) continue; const u = String(g(r, "unit") ?? "").trim(); if (u) i.unit = u; const c = num(g(r, "cost")); if (c != null) i.cost = c; const cat = String(g(r, "cat") ?? "").trim(); if (cat) i.cat = cat; n++; }
+  }
+  const label = DATASETS[st.type].label;
+  importState = null; touch();
+  subtab = st.type === "sales" ? "pos" : st.type === "invoices" ? "vendor" : st.type === "recipes" ? "recipes" : st.type === "ingredients" ? "ingredients" : "import";
+  if (st.type === "hourly") location.hash = "productivity";
+  render(); toast(`Imported ${fmt(n)} ${label.toLowerCase()}.`);
+}
+function normDate(s) {
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) { const y = m[3].length === 2 ? "20" + m[3] : m[3]; return `${y}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`; }
+  return s;
+}
+async function claudeMatchColumns() {
+  const st = importState, d = DATASETS[st.type];
+  st.busy = true; render();
+  const prompt = `You map spreadsheet columns to fields for a restaurant food-cost tool.
+Dataset: ${d.label}.
+Fields (key: meaning): ${d.fields.map(f => `${f.k}: ${f.label}${f.req ? " (required)" : ""}`).join("; ")}.
+Column headers, by index: ${st.headers.map((x, i) => `${i}=${JSON.stringify(x)}`).join(", ")}.
+First rows: ${JSON.stringify(st.rows.slice(0, 3))}.
+Return only a JSON object whose keys are the field keys and whose values are the matching column index (integer) or null if no column fits. Use each column at most once.`;
+  try {
+    const res = await sample.json(prompt, { modelTier: "quick" });
+    const map = {};
+    for (const f of d.fields) { const v = res?.[f.k]; if (Number.isInteger(v) && v >= 0 && v < st.headers.length) map[f.k] = v; }
+    if (importState === st) { st.map = map; toast("Claude matched the columns. Check them before importing."); }
+  } catch (e) { toast(sampleErr(e)); }
+  st.busy = false; if (importState === st) render();
+}
+function sampleErr(e) {
+  if (e?.code === "not_granted") return "Claude wasn't allowed for this page. You can still match columns by hand.";
+  if (e?.code === "rate_limited") return "Claude is busy for a moment. Try again shortly.";
+  return "Claude couldn't answer that time. Try again, or match by hand.";
+}
+function tokenScore(a, b) {
+  const stop = new Set(["the", "and", "of", "w", "with", "lb", "oz", "ct", "cs", "case", "fresh", "frsh"]);
+  const A = new Set(norm(a).split(" ").filter(t => t.length > 1 && !stop.has(t))), B = norm(b).split(" ").filter(t => t.length > 1 && !stop.has(t));
+  let s = 0; for (const t of B) { for (const x of A) { if (x === t) s += 2; else if (x.length > 2 && t.length > 2 && (x.startsWith(t) || t.startsWith(x))) s += 1; } }
+  return s;
+}
+function autoMatch(kind) {
+  const w = ws(); let n = 0;
+  if (kind === "pos") {
+    for (const p of Object.keys(analyze(w).posAgg)) { if (w.posMap[p]) continue; let best = null, bs = 1; for (const r of w.recipes) { const s = tokenScore(p, r.name); if (s > bs) { bs = s; best = r.id; } } if (best) { w.posMap[p] = best; n++; } }
+  } else {
+    for (const desc of new Set(w.invoices.map(l => l.desc))) { if (w.vendorMap[desc]) continue; let best = null, bs = 1; for (const i of w.ingredients) { const s = tokenScore(desc, i.name); if (s > bs) { bs = s; best = i.id; } } if (best) { w.vendorMap[desc] = best; n++; } }
+  }
+  touch(); render(); toast(n ? `Matched ${n} by name. Check the matches.` : "No confident name matches. Try Suggest with Claude or map by hand.");
+}
+async function claudeMatch(kind) {
+  const w = ws();
+  const open = kind === "pos" ? Object.keys(analyze(w).posAgg).filter(p => !w.posMap[p]) : [...new Set(w.invoices.map(l => l.desc))].filter(d => !w.vendorMap[d]);
+  if (!open.length) { toast("Everything is already mapped."); return; }
+  const targets = kind === "pos" ? w.recipes.map(r => ({ id: r.id, name: r.name })) : w.ingredients.map(i => ({ id: i.id, name: i.name, unit: i.unit }));
+  if (!targets.length) { toast(kind === "pos" ? "Add recipes first." : "Add ingredients first."); return; }
+  toast("Asking Claude…");
+  const prompt = `Match restaurant ${kind === "pos" ? "POS menu item names to recipes" : "distributor invoice descriptions to ingredients"}.
+Names to match: ${JSON.stringify(open.slice(0, 120))}
+Options (use the id): ${JSON.stringify(targets)}
+Abbreviations are common (CHX = chicken, BRGR = burger, SHRD = shredded, # = pounds). Only match when you are confident; otherwise use null.${kind === "pos" ? ' Use "__skip" for items that are clearly not food (gift cards, merchandise, service charges).' : ""}
+Return only a JSON object mapping each name exactly as given to an option id or null.`;
+  try {
+    const res = await sample.json(prompt, { modelTier: "default" });
+    const ids = new Set(targets.map(t => t.id)); let n = 0;
+    for (const name of open) { const v = res?.[name]; if (v && (ids.has(v) || (kind === "pos" && v === "__skip"))) { (kind === "pos" ? w.posMap : w.vendorMap)[name] = v; n++; } }
+    touch(); render(); toast(n ? `Claude suggested ${n} matches. Check them.` : "Claude didn't find confident matches.");
+  } catch (e) { toast(sampleErr(e)); }
+}
+
+/* ---------- readout & export ---------- */
+async function draftReadout() {
+  const w = ws(), A = analyze(w);
+  readoutBusy = true; readoutAbort = new AbortController(); render();
+  const facts = {
+    client: w.name, period: w.setup.periodLabel || `${w.setup.periodDays} days`, targetFoodCost: pct(A.fc.target, 0),
+    theoreticalFoodCost: pct(A.fc.theoPct), actualFoodCost: pct(A.fc.actualPct), pnlFoodCost: pct(A.fc.pnlPct),
+    annualOpportunityTotal: money(A.opps.reduce((s, o) => s + o.value, 0)),
+    opportunities: A.opps.slice(0, 8).map(o => ({ type: o.type, title: o.title, annual: money(o.value), detail: o.detail, nextStep: o.action })),
+    menuDogs: A.review.dogs.map(x => x.r.name), puzzles: A.review.puzzles.map(x => x.r.name),
+    stars: A.menu.filter(x => x.quad === "Star").map(x => x.r.name),
+    salesPerLaborHour: money(A.labor.splh), laborPct: pct(A.labor.laborPct), primeCostPct: pct(A.labor.primePct),
+    benchmarks: A.bench.filter(m => m.v != null).map(m => ({ metric: m.label, client: +m.v.toFixed(1), typical: m.typ, top20: m.top, status: m.status })), dataGaps: A.review.gaps.slice(0, 6).map(g => g.t)
+  };
+  const prompt = `You are a restaurant food-cost consultant writing a short readout for the owner of ${w.name}. Use only the facts below; don't invent numbers.
+Facts: ${JSON.stringify(facts)}
+Write 250-380 words in plain text (no markdown symbols). Sections with short plain headings on their own line: "Where you stand" (include how they compare with the top 20% of similar operators), "Biggest opportunities" (3-5 lines, each starting with the dollar figure per year), "Menu", "Next 30 days" (3-4 concrete actions), and "Data to tighten" only if there are data gaps. Direct, warm, no jargon, no hype. Annual figures are extrapolated from one period; say so once.`;
+  try {
+    const { text } = await sample(prompt, { signal: readoutAbort.signal, onText: ({ text }) => { const t = $("#readout"); if (t) t.value = text; } });
+    w.readout = text; touch();
+  } catch (e) {
+    if (e?.text) { w.readout = e.text; touch(); }
+    if (e?.code !== "cancelled") toast(sampleErr(e));
+  }
+  readoutBusy = false; readoutAbort = null; render();
+}
+function oppsCSV() {
+  const w = ws(), A = analyze(w);
+  const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["Rank", "Type", "Opportunity", "Annual value", "This period", "Detail", "Next step"].map(esc).join(",")];
+  A.opps.forEach((o, i) => lines.push([i + 1, o.type, o.title, Math.round(o.value), Math.round(o.period), o.detail, o.action].map(esc).join(",")));
+  return lines.join("\n");
+}
+async function exportCSV() {
+  const w = ws(), csv = oppsCSV(), name = `${(w.name || "client").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-opportunities.csv`;
+  if (downloads) {
+    try { await downloads.save({ filename: name, data: csv }); return; }
+    catch (e) { if (e?.code !== "unavailable") { if (e?.code === "declined" || e?.code === "cancelled") return; } }
+  }
+  try { await navigator.clipboard.writeText(csv); toast("Downloads aren't available here, so the CSV was copied to your clipboard."); }
+  catch { toast("Couldn't save or copy the CSV in this view."); }
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", async e => {
+  const sub = e.target.closest("[data-sub]");
+  if (sub) { subtab = sub.dataset.sub; render(); return; }
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act, w = ws();
+  const rEl = b.closest("[data-rid]"), rec = rEl ? w.recipes.find(r => r.id === rEl.dataset.rid) : null;
+  switch (act) {
+    case "new-client": newClient(); break;
+    case "delete-ask": confirmDelete = true; render(); break;
+    case "delete-no": confirmDelete = false; render(); break;
+    case "delete-yes": {
+      const id = currentId;
+      if (db && !id.startsWith("local_")) { try { await db.doc("clients/" + id).delete(); } catch (err) { toast("Couldn't delete this client."); return; } }
+      delete clients[id]; if (localMode) saveLocal(); dirty = false; currentId = DEMO_ID; confirmDelete = false; renderClientSel(); renderSaveState(); render(); toast("Client deleted."); break;
+    }
+    case "imp-paste": { const t = $("#imp_paste").value; if (t.trim()) startImport(t, "Pasted text"); else toast("Paste CSV text first."); break; }
+    case "imp-cancel": importState = null; render(); break;
+    case "imp-claude": claudeMatchColumns(); break;
+    case "imp-go": doImport(); break;
+    case "auto-pos": autoMatch("pos"); break;
+    case "auto-ven": autoMatch("ven"); break;
+    case "claude-pos": claudeMatch("pos"); break;
+    case "claude-ven": claudeMatch("ven"); break;
+    case "add-recipe": { w.recipes.unshift({ id: uid("r_"), name: "New recipe", price: null, cat: "", yieldPct: 100, lines: [], _open: true }); touch(); render(); break; }
+    case "add-line": if (rec) { rec.lines.push({ ing: "", qty: 0 }); rec._open = true; touch(); render(); } break;
+    case "del-line": if (rec) { rec.lines.splice(+b.dataset.i, 1); rec._open = true; touch(); render(); } break;
+    case "del-recipe": if (rec) { w.recipes = w.recipes.filter(r => r !== rec); for (const k in w.posMap) if (w.posMap[k] === rec.id) delete w.posMap[k]; touch(); render(); } break;
+    case "add-ing": w.ingredients.unshift({ id: uid("i_"), name: "New ingredient", unit: "ea", cat: "", cost: null }); touch(); render(); break;
+    case "del-ing": {
+      const id = b.closest("[data-iid]").dataset.iid;
+      w.ingredients = w.ingredients.filter(i => i.id !== id); delete w.counts[id];
+      for (const k in w.vendorMap) if (w.vendorMap[k] === id) delete w.vendorMap[k];
+      w.recipes.forEach(r => r.lines = r.lines.filter(l => l.ing !== id)); touch(); render(); break;
+    }
+    case "draft": draftReadout(); break;
+    case "draft-stop": readoutAbort?.abort(); break;
+    case "copy-readout": { const t = $("#readout"); try { await navigator.clipboard.writeText(t.value); toast("Readout copied."); } catch { t.select(); toast("Text selected. Copy it with your keyboard."); } break; }
+    case "export": exportCSV(); break;
+    case "goto-import": subtab = "import"; importState = null; pendingType = b.dataset.type; location.hash = "data"; break;
+    case "bench-reset": w.bench = {}; touch(); render(); break;
+    case "roll-ask": rollConfirm = true; render(); break;
+    case "roll-no": rollConfirm = false; render(); break;
+    case "roll-yes": rollPeriod(); break;
+  }
+});
+document.addEventListener("toggle", e => { const d = e.target; if (d.matches?.("details[data-rid]")) { const r = ws().recipes.find(x => x.id === d.dataset.rid); if (r) r._open = d.open; } }, true);
+document.addEventListener("input", e => {
+  const t = e.target, w = ws();
+  if (t.dataset.count) {
+    const c = w.counts[t.dataset.count] ||= {};
+    c[t.dataset.cf] = t.value === "" ? null : num(t.value);
+    const row = analyze(w).rows.find(r => r.ing.id === t.dataset.count);
+    const cell = document.querySelector(`[data-actual="${CSS.escape(t.dataset.count)}"]`);
+    if (cell) cell.textContent = row?.actual == null ? "–" : fmt(row.actual, 1);
+    touch(); return;
+  }
+  if (t.id === "readout") { w.readout = t.value; touch(); return; }
+  if (t.dataset.set === "name") { w.name = t.value; touch(); renderClientSel(); return; }
+});
+document.addEventListener("change", e => {
+  const t = e.target, w = ws();
+  if (t.id === "clientSel") { switchClient(t.value); return; }
+  if (t.id === "imp_file") { const f = t.files[0]; if (f) f.text().then(x => startImport(x, f.name)); return; }
+  if (t.id === "imp_type") { pendingType = t.value; return; }
+  if (t.dataset.check) { w.checklist ||= {}; w.checklist[t.dataset.check] = t.checked; touch(); render(); return; }
+  if (t.dataset.bf) { const k = t.closest("[data-bk]").dataset.bk; w.bench ||= {}; const o = w.bench[k] ||= {}; o[t.dataset.bf] = num(t.value); touch(); render(); return; }
+  if (t.dataset.map && importState) { importState.map[t.dataset.map] = t.value === "" ? null : +t.value; if (importState.map[t.dataset.map] == null) delete importState.map[t.dataset.map]; render(); return; }
+  if (t.dataset.setup) { const k = t.dataset.setup; w.setup[k] = t.type === "number" ? num(t.value) : t.value; touch(); return; }
+  if (t.dataset.pnl) { w.pnl[t.dataset.pnl] = num(t.value); touch(); return; }
+  if (t.dataset.posmap != null) { if (t.value) w.posMap[t.dataset.posmap] = t.value; else delete w.posMap[t.dataset.posmap]; touch(); render(); return; }
+  if (t.dataset.venmap != null) { if (t.value) w.vendorMap[t.dataset.venmap] = t.value; else delete w.vendorMap[t.dataset.venmap]; touch(); render(); return; }
+  if (t.dataset.packunits != null) { const v = num(t.value); w.invoices.forEach(l => { if (l.desc === t.dataset.packunits) l.packUnits = v; }); touch(); return; }
+  const rEl = t.closest("[data-rid]");
+  if (rEl) {
+    const r = w.recipes.find(x => x.id === rEl.dataset.rid); if (!r) return; r._open = true;
+    if (t.dataset.rf) r[t.dataset.rf] = t.type === "number" ? num(t.value) : t.value;
+    if (t.dataset.rl != null) { const l = r.lines[+t.dataset.rl]; l[t.dataset.rlf] = t.dataset.rlf === "qty" ? num(t.value) || 0 : t.value; }
+    touch(); render(); return;
+  }
+  const iEl = t.closest("[data-iid]");
+  if (iEl && t.dataset.if) { const i = w.ingredients.find(x => x.id === iEl.dataset.iid); if (i) { i[t.dataset.if] = t.dataset.if === "cost" ? num(t.value) : t.value; touch(); } return; }
+});
+document.addEventListener("dragover", e => { const d = e.target.closest?.("#drop"); if (d) { e.preventDefault(); d.classList.add("over"); } });
+document.addEventListener("dragleave", e => { const d = e.target.closest?.("#drop"); if (d) d.classList.remove("over"); });
+document.addEventListener("drop", e => { const d = e.target.closest?.("#drop"); if (!d) return; e.preventDefault(); d.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) f.text().then(x => startImport(x, f.name)); });
+$("#newClientBtn").addEventListener("click", newClient);
+// tooltip
+const tip = $("#tip");
+document.addEventListener("mousemove", e => {
+  const el = e.target.closest?.("[data-tip]");
+  if (!el) { tip.hidden = true; return; }
+  tip.textContent = el.dataset.tip; tip.hidden = false;
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8), y = e.clientY + 16 + tip.offsetHeight > window.innerHeight ? e.clientY - tip.offsetHeight - 10 : e.clientY + 16;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+});
+window.addEventListener("beforeunload", () => { if (dirty) saveNow(); });
+
+/* ---------- boot ---------- */
+readHash(); renderClientSel(); renderSaveState(); render();
+(async () => {
+  if (!window.claude?.use) { localMode = true; loadLocal(); renderClientSel(); renderSaveState(); return; }
+  claude.use("sample").then(s => { sample = s; if (["data", "readout"].includes(tab)) render(); });
+  claude.use("downloads").then(d => { downloads = d; });
+  db = await claude.use("db");
+  if (!db) { renderSaveState(); return; }
+  db.collection("clients").onSnapshot(snap => {
+    const seen = new Set();
+    for (const d of snap.docs) {
+      seen.add(d.id);
+      const data = d.data(); if (!data) continue;
+      const json = JSON.stringify(data);
+      if (d.id === currentId && (dirty || saving)) continue;
+      if (lastSavedJSON[d.id] === json && clients[d.id]) continue;
+      clients[d.id] = upgrade(clone(data)); lastSavedJSON[d.id] = json;
+      if (d.id === currentId && !document.activeElement?.matches("input,textarea,select")) render();
+    }
+    for (const id of Object.keys(clients)) if (!seen.has(id) && !id.startsWith("local_") && !snap.metadata.fromCache) { delete clients[id]; if (currentId === id) { currentId = DEMO_ID; render(); } }
+    renderClientSel(); renderSaveState();
+  }, err => { if (err?.code === "revoked") { db = null; renderSaveState(); } });
+})();
+</script>
+
+</body></html>
